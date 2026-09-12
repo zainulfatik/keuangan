@@ -61,6 +61,7 @@
       // Filter State
       const [filterWallet, setFilterWallet] = useState('Semua');
       const [filterType, setFilterType] = useState('Semua');
+      const [filterMonth, setFilterMonth] = useState('Semua');
       const [searchQuery, setSearchQuery] = useState('');
 
       // Form Modal State
@@ -279,20 +280,76 @@
         return balances;
       }, [transactions]);
 
+      // Calculate Overall Financial Totals
+      const totalMetrics = useMemo(() => {
+        let totalInc = 0;
+        let totalExp = 0;
+        transactions.forEach(tx => {
+          const amt = Number(tx.amount) || 0;
+          if (tx.type === 'Pemasukan') totalInc += amt;
+          if (tx.type === 'Pengeluaran') totalExp += amt;
+        });
+        const grandTotal = Object.values(walletBalances).reduce((a, b) => a + b, 0);
+        return { grandTotal, totalInc, totalExp };
+      }, [transactions, walletBalances]);
+
+      const monthlyMetrics = useMemo(() => {
+        const monthlyMap = {};
+        const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+
+        transactions.forEach(tx => {
+          if (!tx.date) return;
+          const ym = String(tx.date).substring(0, 7);
+          if (!ym || ym.length < 7) return;
+
+          if (!monthlyMap[ym]) {
+            monthlyMap[ym] = { income: 0, expense: 0, count: 0 };
+          }
+
+          const amt = Number(tx.amount) || 0;
+          if (tx.type === 'Pemasukan') {
+            monthlyMap[ym].income += amt;
+            monthlyMap[ym].count += 1;
+          } else if (tx.type === 'Pengeluaran') {
+            monthlyMap[ym].expense += amt;
+            monthlyMap[ym].count += 1;
+          }
+        });
+
+        const sortedMonths = Object.keys(monthlyMap).sort().reverse();
+
+        return sortedMonths.map(ym => {
+          const [year, monthStr] = ym.split('-');
+          const monthIdx = parseInt(monthStr, 10) - 1;
+          const label = `${monthNames[monthIdx] || monthStr} ${year}`;
+          const inc = monthlyMap[ym].income;
+          const exp = monthlyMap[ym].expense;
+          return {
+            ym,
+            label,
+            income: inc,
+            expense: exp,
+            net: inc - exp,
+            count: monthlyMap[ym].count
+          };
+        });
+      }, [transactions]);
+
       // Filtered Transactions
       const filteredTransactions = useMemo(() => {
         return transactions.filter(tx => {
           const matchWallet = filterWallet === 'Semua' || tx.wallet.includes(filterWallet);
           const matchType = filterType === 'Semua' || tx.type === filterType;
+          const matchMonth = filterMonth === 'Semua' || (tx.date && String(tx.date).startsWith(filterMonth));
           const query = searchQuery.toLowerCase();
           const matchSearch = !query || 
             (tx.notes && tx.notes.toLowerCase().includes(query)) ||
             (tx.category && tx.category.toLowerCase().includes(query)) ||
             (tx.wallet && tx.wallet.toLowerCase().includes(query));
 
-          return matchWallet && matchType && matchSearch;
+          return matchWallet && matchType && matchMonth && matchSearch;
         });
-      }, [transactions, filterWallet, filterType, searchQuery]);
+      }, [transactions, filterWallet, filterType, filterMonth, searchQuery]);
 
       // Chart Rendering
       useEffect(() => {
@@ -392,7 +449,54 @@
             </div>
           </header>
 
-          {}
+          {/* Overall Balance Summary Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-5 rounded-2xl shadow-lg border border-slate-800 flex items-center justify-between">
+              <div>
+                <span className="text-xs uppercase tracking-wider text-indigo-300 font-semibold">Total Saldo Keseluruhan</span>
+                <div className="text-2xl sm:text-3xl font-extrabold mt-1 text-white">
+                  {hideBalance ? 'Rp •••••••••' : `Rp ${totalMetrics.grandTotal.toLocaleString('id-ID')}`}
+                </div>
+                <span className="text-[11px] text-slate-400 mt-1 block">Gabungan dari seluruh dompet</span>
+              </div>
+              <div className="w-12 h-12 bg-indigo-500/20 text-indigo-400 rounded-xl flex items-center justify-center text-2xl border border-indigo-500/30 shadow-inner">
+                <i className="fa-solid fa-vault"></i>
+              </div>
+            </div>
+
+            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center justify-between">
+              <div>
+                <span className="text-xs uppercase tracking-wider text-emerald-600 font-bold">Total Pemasukan</span>
+                <div className="text-xl font-bold text-slate-900 mt-1">
+                  {hideBalance ? 'Rp •••••••••' : `Rp ${totalMetrics.totalInc.toLocaleString('id-ID')}`}
+                </div>
+                <span className="text-[11px] text-slate-400 mt-1 block">Akumulasi seluruh transaksi</span>
+              </div>
+              <div className="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center text-xl">
+                <i className="fa-solid fa-arrow-down"></i>
+              </div>
+            </div>
+
+            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center justify-between">
+              <div>
+                <span className="text-xs uppercase tracking-wider text-rose-600 font-bold">Total Pengeluaran</span>
+                <div className="text-xl font-bold text-slate-900 mt-1">
+                  {hideBalance ? 'Rp •••••••••' : `Rp ${totalMetrics.totalExp.toLocaleString('id-ID')}`}
+                </div>
+                <span className="text-[11px] text-slate-400 mt-1 block">Akumulasi seluruh transaksi</span>
+              </div>
+              <div className="w-10 h-10 bg-rose-100 text-rose-600 rounded-xl flex items-center justify-center text-xl">
+                <i className="fa-solid fa-arrow-up"></i>
+              </div>
+            </div>
+          </div>
+
+          {/* Section Header */}
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">Rincian Saldo Per Dompet</h3>
+            <span className="text-xs text-slate-400 font-medium">{defaultWallets.length} Dompet Aktif</span>
+          </div>
+
           {/* Wallet Balance Cards */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
             {defaultWallets.map((w, idx) => {
@@ -417,6 +521,70 @@
                 </div>
               );
             })}
+          </div>
+
+          {/* Monthly Financial History Summary Section */}
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/80 mb-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 flex items-center space-x-2">
+                  <i className="fa-solid fa-calendar-days text-indigo-600"></i>
+                  <span>Riwayat Keuangan Per Bulan</span>
+                </h3>
+                <p className="text-xs text-slate-400">Ringkasan total pemasukan, pengeluaran, dan cashflow bersih setiap bulan</p>
+              </div>
+              <span className="text-xs bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full font-semibold">
+                {monthlyMetrics.length} Bulan Tercatat
+              </span>
+            </div>
+
+            {monthlyMetrics.length === 0 ? (
+              <p className="text-xs text-slate-400 text-center py-4">Belum ada data bulanan.</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {monthlyMetrics.map(m => (
+                  <div key={m.ym} className="bg-slate-50/80 rounded-xl p-4 border border-slate-200/80 hover:shadow-md transition">
+                    <div className="flex justify-between items-center pb-2 border-b border-slate-200/60 mb-3">
+                      <span className="font-bold text-slate-800 text-sm">{m.label}</span>
+                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                        m.net >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
+                      }`}>
+                        {m.net >= 0 ? 'Surplus' : 'Defisit'}
+                      </span>
+                    </div>
+
+                    <div className="space-y-2 text-xs">
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-500 flex items-center">
+                          <i className="fa-solid fa-arrow-down text-emerald-500 mr-1.5"></i>
+                          Total Pemasukan
+                        </span>
+                        <span className="font-bold text-emerald-600">
+                          {hideBalance ? 'Rp •••••••' : `+ Rp ${m.income.toLocaleString('id-ID')}`}
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-500 flex items-center">
+                          <i className="fa-solid fa-arrow-up text-rose-500 mr-1.5"></i>
+                          Total Pengeluaran
+                        </span>
+                        <span className="font-bold text-rose-600">
+                          {hideBalance ? 'Rp •••••••' : `- Rp ${m.expense.toLocaleString('id-ID')}`}
+                        </span>
+                      </div>
+
+                      <div className="pt-2 border-t border-slate-200/60 flex justify-between items-center font-semibold text-slate-800">
+                        <span>Cashflow Bersih</span>
+                        <span className={m.net >= 0 ? 'text-emerald-700' : 'text-rose-700'}>
+                          {hideBalance ? 'Rp •••••••' : `${m.net >= 0 ? '+' : ''} Rp ${m.net.toLocaleString('id-ID')}`}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Main Grid Section */}
@@ -463,7 +631,16 @@
 
               {}
               {/* Filter Controls */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 mb-4">
+                <select 
+                  value={filterMonth} 
+                  onChange={(e) => setFilterMonth(e.target.value)}
+                  className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="Semua">Semua Bulan</option>
+                  {monthlyMetrics.map(m => <option key={m.ym} value={m.ym}>{m.label}</option>)}
+                </select>
+
                 <select 
                   value={filterWallet} 
                   onChange={(e) => setFilterWallet(e.target.value)}
@@ -478,7 +655,7 @@
                   onChange={(e) => setFilterType(e.target.value)}
                   className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
-                  <option value="Semua">Semua Tipe Transaksi</option>
+                  <option value="Semua">Semua Tipe</option>
                   <option value="Pemasukan">Pemasukan</option>
                   <option value="Pengeluaran">Pengeluaran</option>
                   <option value="Transfer">Transfer</option>
@@ -486,14 +663,13 @@
 
                 <input 
                   type="text"
-                  placeholder="Cari keterangan / kategori..."
+                  placeholder="Cari..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
 
-              {}
               {/* Transactions Table */}
               <div className="overflow-x-auto rounded-xl border border-slate-100">
                 <table className="w-full text-left text-sm">
