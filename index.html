@@ -43,7 +43,7 @@
       // Config & State
       const [scriptUrl, setScriptUrl] = useState(() => localStorage.getItem('dompetku_script_url') || '');
       const [showSettings, setShowSettings] = useState(false);
-      const [hideBalance, setHideBalance] = useState(false);
+      const [hideBalance, setHideBalance] = useState(true);
       const [isLoading, setIsLoading] = useState(false);
       const [deletingId, setDeletingId] = useState(null);
       const [toast, setToast] = useState(null);
@@ -629,7 +629,6 @@
                 </div>
               </div>
 
-              {}
               {/* Filter Controls */}
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 mb-4">
                 <select 
@@ -735,7 +734,6 @@
               </div>
             </div>
 
-            {}
             {/* Right Column: Analytics Chart */}
             <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/80 flex flex-col justify-between">
               <div>
@@ -755,7 +753,6 @@
             </div>
           </div>
 
-          {}
           {/* Modal Add Transaction */}
           {showAddModal && (
             <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
