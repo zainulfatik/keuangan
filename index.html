@@ -3,44 +3,172 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DOMPETKU - Financial Tracker & Google Sheets Sync</title>
+  <title>DOMPETKU - Tenchu Shinobi Treasury & Google Sheets Sync</title>
+  
+  <!-- React & Babel -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  
+  <!-- Tailwind CSS & Chart.js -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
   
+  <!-- Fonts & Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800;900&family=Noto+Serif+JP:wght@500;700;900&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+
   <script>
     tailwind.config = {
       theme: {
         extend: {
           colors: {
-            brand: {
-              50: '#f0f3ff',
-              500: '#4f46e5',
-              600: '#4338ca',
-              700: '#3730a3',
-              900: '#0f172a'
+            tenchu: {
+              bg: '#08080a',
+              card: '#121217',
+              border: '#2a2833',
+              crimson: '#8b0000',
+              blood: '#dc2626',
+              gold: '#d97706',
+              goldBright: '#f59e0b',
+              paper: '#f3ece0',
+              paperDark: '#23211b',
+              ink: '#050507'
             }
+          },
+          fontFamily: {
+            cinzel: ['Cinzel', 'serif'],
+            jp: ['"Noto Serif JP"', 'serif'],
+            sans: ['"Plus Jakarta Sans"', 'sans-serif']
           }
         }
       }
     }
   </script>
+
   <style>
-    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-    .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
+    body {
+      background-color: #08080a;
+      background-image: 
+        radial-gradient(circle at 50% 0%, rgba(139, 0, 0, 0.18) 0%, transparent 60%),
+        radial-gradient(circle at 10% 80%, rgba(217, 119, 6, 0.08) 0%, transparent 40%),
+        repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.15) 1px, transparent 1px, transparent 2px);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      color: #e2e8f0;
+    }
+
+    /* Rice paper / Scroll texture overlay */
+    .ninja-card {
+      background: linear-gradient(145deg, rgba(22, 21, 28, 0.95), rgba(12, 11, 16, 0.98));
+      border: 1px solid #2a2736;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+      position: relative;
+    }
+
+    .ninja-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, #8b0000, #d97706, #8b0000, transparent);
+      opacity: 0.8;
+    }
+
+    .kanji-watermark {
+      font-family: 'Noto Serif JP', serif;
+      pointer-events: none;
+      user-select: none;
+      opacity: 0.04;
+    }
+
+    .scroll-border {
+      border-image: linear-gradient(to bottom, #d97706, #8b0000, #2a2736) 1;
+    }
+
+    /* Glow stealth indicator meter */
+    .stealth-eye-glow {
+      box-shadow: 0 0 20px rgba(220, 38, 38, 0.6);
+      animation: pulseGlow 2.5s infinite alternate;
+    }
+
+    @keyframes pulseGlow {
+      0% { box-shadow: 0 0 10px rgba(220, 38, 38, 0.4); }
+      100% { box-shadow: 0 0 25px rgba(220, 38, 38, 0.9); }
+    }
+
+    .kanji-heading {
+      font-family: 'Noto Serif JP', serif;
+      letter-spacing: 0.05em;
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0d0c10;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #3e384d;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #8b0000;
+    }
   </style>
 </head>
-<body class="bg-slate-100 min-h-screen text-slate-800">
+<body class="min-h-screen pb-12 selection:bg-red-900 selection:text-white">
   <div id="root"></div>
 
   <script type="text/babel">
     const { useState, useEffect, useMemo, useRef } = React;
 
+    // Web Audio Sound FX for Tenchu Experience
+    const playSound = (type) => {
+      try {
+        if (!window.AudioContext && !window.webkitAudioContext) return;
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        const now = ctx.currentTime;
+        if (type === 'slash') { // Katana blade slash for action
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(800, now);
+          osc.frequency.exponentialRampToValueAtTime(100, now + 0.15);
+          gain.gain.setValueAtTime(0.15, now);
+          gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+          osc.start(now);
+          osc.stop(now + 0.15);
+        } else if (type === 'scroll') { // Scroll unroll
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(300, now);
+          osc.frequency.linearRampToValueAtTime(600, now + 0.1);
+          gain.gain.setValueAtTime(0.1, now);
+          gain.gain.linearRampToValueAtTime(0.01, now + 0.1);
+          osc.start(now);
+          osc.stop(now + 0.1);
+        } else if (type === 'stealth') { // Hide balance / Stealth sight
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(200, now);
+          osc.frequency.exponentialRampToValueAtTime(500, now + 0.2);
+          gain.gain.setValueAtTime(0.2, now);
+          gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
+          osc.start(now);
+          osc.stop(now + 0.2);
+        }
+      } catch (e) {
+        // Audio fallback ignore
+      }
+    };
+
     function App() {
-      // Config & State
       const [scriptUrl, setScriptUrl] = useState(() => localStorage.getItem('dompetku_script_url') || '');
       const [showSettings, setShowSettings] = useState(false);
       const [hideBalance, setHideBalance] = useState(true);
@@ -48,17 +176,19 @@
       const [deletingId, setDeletingId] = useState(null);
       const [toast, setToast] = useState(null);
 
-      // Data
+      // Default Wallets (Kantung Ninja)
       const defaultWallets = ["Tas", "Seabank", "Jok", "Lemari", "BNI", "BRI"];
+
+      // Default Transactions
       const [transactions, setTransactions] = useState(() => {
         const saved = localStorage.getItem('dompetku_txs');
         return saved ? JSON.parse(saved) : [
-          { id: 'tx_local_1', date: '2026-09-12', type: 'Pemasukan', wallet: 'Tas', category: 'Makanan & Minuman', amount: 1000000, notes: 'Saldo Awal' },
-          { id: 'tx_local_2', date: '2026-09-12', type: 'Pengeluaran', wallet: 'Tas', category: 'Makanan & Minuman', amount: 50000, notes: 'sarapan' }
+          { id: 'tx_local_1', date: '2026-09-12', type: 'Pemasukan', wallet: 'Tas', category: 'Gaji / Pendapatan', amount: 1000000, notes: 'Modal Perbendaharaan Ninja' },
+          { id: 'tx_local_2', date: '2026-09-12', type: 'Pengeluaran', wallet: 'Tas', category: 'Makanan & Minuman', amount: 50000, notes: 'Ransum Misi (Miso & Rice)' }
         ];
       });
 
-      // Filter State
+      // Filter States
       const [filterWallet, setFilterWallet] = useState('Semua');
       const [filterType, setFilterType] = useState('Semua');
       const [filterMonth, setFilterMonth] = useState('Semua');
@@ -66,7 +196,7 @@
 
       // Form Modal State
       const [showAddModal, setShowAddModal] = useState(false);
-      const [modalType, setModalType] = useState('Pengeluaran'); // Pemasukan, Pengeluaran, Transfer
+      const [modalType, setModalType] = useState('Pengeluaran');
       const [formData, setFormData] = useState({
         date: new Date().toISOString().split('T')[0],
         wallet: 'Tas',
@@ -80,7 +210,6 @@
       const chartRef = useRef(null);
       const chartInstance = useRef(null);
 
-      // Save Local Storage
       useEffect(() => {
         localStorage.setItem('dompetku_txs', JSON.stringify(transactions));
       }, [transactions]);
@@ -94,8 +223,8 @@
         setTimeout(() => setToast(null), 4000);
       };
 
-      // Sync from Google Sheets
       const syncFromSheets = async () => {
+        playSound('scroll');
         if (!scriptUrl) {
           showNotification('⚠️ Masukkan URL Google Apps Script di menu Pengaturan terlebih dahulu!', 'warning');
           setShowSettings(true);
@@ -108,37 +237,35 @@
           const data = await res.json();
           if (data.status === 'success' && Array.isArray(data.transactions)) {
             setTransactions(data.transactions);
-            showNotification('✅ Data berhasil disinkronkan dengan Google Sheets!', 'success');
+            showNotification('⚡ Gulungan Perbendaharaan berhasil disinkronkan!', 'success');
           } else {
             showNotification('❌ Gagal membaca data: ' + (data.message || 'Format tidak valid'), 'error');
           }
         } catch (err) {
-          showNotification('❌ Gagal terhubung ke Google Sheets: ' + err.message, 'error');
+          showNotification('❌ Terputus dari Google Sheets: ' + err.message, 'error');
         } finally {
           setIsLoading(false);
         }
       };
 
-      // CRITICAL FUNCTION: Delete transaction from Google Sheets without CORS blocking
       const handleDeleteTransaction = async (tx) => {
-        if (!confirm(`Apakah Anda yakin ingin menghapus transaksi "${tx.notes || tx.category}" (Rp ${Number(tx.amount).toLocaleString('id-ID')})?`)) {
+        playSound('slash');
+        if (!confirm(`Apakah Anda yakin ingin menumpas catatan "${tx.notes || tx.category}" (Rp ${Number(tx.amount).toLocaleString('id-ID')})?`)) {
           return;
         }
 
-        // 1. Hapus sementara di UI lokal
         const previousTxs = [...transactions];
         setTransactions(prev => prev.filter(t => t.id !== tx.id));
         setDeletingId(tx.id);
 
         if (!scriptUrl) {
-          showNotification('Hapus lokal berhasil. (Tambahkan URL Apps Script untuk menghapus di Sheets)', 'info');
+          showNotification('Hapus lokal berhasil. (Tambahkan URL Apps Script untuk Google Sheets)', 'info');
           setDeletingId(null);
           return;
         }
 
-        // 2. Kirim request hapus ke Google Apps Script (Menggunakan text/plain untuk bypass CORS)
         try {
-          showNotification('⏳ Menghapus transaksi dari Google Sheets...', 'info');
+          showNotification('🗡️ Menumpas catatan di Google Sheets...', 'info');
           
           const payload = JSON.stringify({
             action: 'delete',
@@ -151,28 +278,23 @@
             notes: tx.notes
           });
 
-          // Menggunakan text/plain mencegah CORS Preflight OPTIONS request yang sering diblokir browser di GAS
           const response = await fetch(scriptUrl, {
             method: 'POST',
             mode: 'cors',
-            headers: {
-              'Content-Type': 'text/plain;charset=utf-8'
-            },
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
             body: payload
           });
 
           const result = await response.json();
 
           if (result.status === 'success') {
-            showNotification('✅ Transaksi BERHASIL DIHAPUS dari Google Sheets!', 'success');
+            showNotification('🥷 Catatan BERHASIL DITUMPAS dari Google Sheets!', 'success');
           } else {
-            // Jika Apps Script gagal menghapus, kembalikan data di UI
             setTransactions(previousTxs);
-            showNotification('❌ Gagal hapus di Sheets: ' + result.message, 'error');
+            showNotification('❌ Gagal menumpas di Sheets: ' + result.message, 'error');
           }
         } catch (err) {
           console.error('Delete error:', err);
-          // Fallback via GET parameter jika POST diblokir penuh oleh jaringan
           try {
             const queryParams = new URLSearchParams({
               action: 'delete',
@@ -188,14 +310,14 @@
             const fallbackData = await fallbackRes.json();
 
             if (fallbackData.status === 'success') {
-              showNotification('✅ Transaksi BERHASIL DIHAPUS dari Google Sheets!', 'success');
+              showNotification('🥷 Catatan BERHASIL DITUMPAS dari Google Sheets!', 'success');
             } else {
               setTransactions(previousTxs);
-              showNotification('❌ Gagal menghapus dari Spreadsheet', 'error');
+              showNotification('❌ Gagal memangkas data Spreadsheet', 'error');
             }
           } catch (fallbackErr) {
             setTransactions(previousTxs);
-            showNotification('❌ Koneksi terblokir. Pastikan Akses Web App diset "Anyone / Siapa Saja"', 'error');
+            showNotification('❌ Koneksi terblokir. Pastikan Web App diset "Anyone / Siapa Saja"', 'error');
           }
         } finally {
           setDeletingId(null);
@@ -204,8 +326,10 @@
 
       const handleAddSubmit = async (e) => {
         e.preventDefault();
+        playSound('slash');
+
         if (!formData.amount || Number(formData.amount) <= 0) {
-          showNotification('⚠️ Masukkan nominal yang valid!', 'warning');
+          showNotification('⚠️ Masukkan nominal emas/rupiah yang valid!', 'warning');
           return;
         }
 
@@ -224,11 +348,9 @@
           notes: formData.notes
         };
 
-        // Update Lokal
         setTransactions(prev => [newTx, ...prev]);
         setShowAddModal(false);
 
-        // Reset form
         setFormData({
           date: new Date().toISOString().split('T')[0],
           wallet: 'Tas',
@@ -238,10 +360,9 @@
           notes: ''
         });
 
-        // Kirim ke Google Sheets
         if (scriptUrl) {
           try {
-            showNotification('⏳ Menyimpan ke Google Sheets...', 'info');
+            showNotification('📜 Merekam catatan ke Google Sheets...', 'info');
             await fetch(scriptUrl, {
               method: 'POST',
               mode: 'cors',
@@ -251,14 +372,13 @@
                 ...newTx
               })
             });
-            showNotification('✅ Transaksi berhasil disimpan ke Google Sheets!', 'success');
+            showNotification('✅ Catatan tersimpan di Google Sheets!', 'success');
           } catch (err) {
-            showNotification('⚠️ Tersimpan lokal, tetapi gagal terhubung ke Sheets', 'warning');
+            showNotification('⚠️ Tersimpan lokal, gagal tersambung ke Sheets', 'warning');
           }
         }
       };
 
-      // Calculate Balances
       const walletBalances = useMemo(() => {
         const balances = {};
         defaultWallets.forEach(w => balances[w] = 0);
@@ -280,7 +400,6 @@
         return balances;
       }, [transactions]);
 
-      // Calculate Overall Financial Totals
       const totalMetrics = useMemo(() => {
         let totalInc = 0;
         let totalExp = 0;
@@ -335,7 +454,6 @@
         });
       }, [transactions]);
 
-      // Filtered Transactions
       const filteredTransactions = useMemo(() => {
         return transactions.filter(tx => {
           const matchWallet = filterWallet === 'Semua' || tx.wallet.includes(filterWallet);
@@ -351,7 +469,6 @@
         });
       }, [transactions, filterWallet, filterType, filterMonth, searchQuery]);
 
-      // Chart Rendering
       useEffect(() => {
         if (!chartRef.current) return;
 
@@ -374,19 +491,24 @@
         chartInstance.current = new Chart(ctx, {
           type: 'doughnut',
           data: {
-            labels: labels.length ? labels : ['Belum Ada Pengeluaran'],
+            labels: labels.length ? labels : ['Belum Ada Misi Pengeluaran'],
             datasets: [{
               data: data.length ? data : [1],
               backgroundColor: data.length ? [
-                '#f87171', '#fb923c', '#fbbf24', '#a3e635', '#34d399', '#22d3ee', '#818cf8', '#c084fc'
-              ] : ['#e2e8f0']
+                '#dc2626', '#d97706', '#f59e0b', '#84cc16', '#10b981', '#06b6d4', '#6366f1', '#a855f7'
+              ] : ['#2a2736'],
+              borderColor: '#121217',
+              borderWidth: 2
             }]
           },
           options: {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-              legend: { position: 'bottom' }
+              legend: { 
+                position: 'bottom',
+                labels: { color: '#94a3b8', font: { family: 'Plus Jakarta Sans', size: 11 } }
+              }
             }
           }
         });
@@ -397,125 +519,170 @@
       }, [transactions]);
 
       return (
-        <div className="max-w-7xl mx-auto px-4 py-6">
+        <div className="max-w-7xl mx-auto px-4 py-6 relative overflow-hidden">
+          
+          {/* Subtle Background Kanji Watermark */}
+          <div className="absolute top-10 right-10 text-[180px] font-black kanji-watermark text-red-900 leading-none">
+            天誅
+          </div>
+          <div className="absolute bottom-20 left-10 text-[160px] font-black kanji-watermark text-amber-900 leading-none">
+            忍
+          </div>
+
           {/* Toast Notification */}
           {toast && (
-            <div className={`fixed top-5 right-5 z-50 px-5 py-3 rounded-xl shadow-2xl text-white font-medium flex items-center space-x-3 transition-all transform slide-in ${
-              toast.type === 'error' ? 'bg-red-600' :
-              toast.type === 'warning' ? 'bg-amber-600' :
-              toast.type === 'success' ? 'bg-emerald-600' : 'bg-slate-800'
+            <div className={`fixed top-5 right-5 z-50 px-5 py-3 rounded-lg shadow-2xl text-white font-semibold flex items-center space-x-3 border ${
+              toast.type === 'error' ? 'bg-red-950/90 border-red-600 text-red-200' :
+              toast.type === 'warning' ? 'bg-amber-950/90 border-amber-600 text-amber-200' :
+              toast.type === 'success' ? 'bg-emerald-950/90 border-emerald-600 text-emerald-200' : 'bg-slate-900 border-slate-700'
             }`}>
-              <span>{toast.msg}</span>
+              <i className="fa-solid fa-shuriken text-amber-500 animate-spin"></i>
+              <span className="text-sm">{toast.msg}</span>
             </div>
           )}
 
-          {/* Header */}
-          <header className="bg-slate-900 text-white rounded-2xl p-5 shadow-lg mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
-            <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center text-2xl shadow-inner">
-                <i className="fa-solid fa-wallet"></i>
+          {/* Tenchu Ninja Header */}
+          <header className="ninja-card rounded-2xl p-6 mb-6 flex flex-col md:flex-row justify-between items-center gap-4 relative overflow-hidden border-b-2 border-red-900">
+            <div className="flex items-center space-x-4">
+              <div className="w-14 h-14 bg-gradient-to-br from-red-900 to-black rounded-xl border border-red-600 flex items-center justify-center text-red-500 shadow-lg relative group">
+                <span className="text-2xl font-black kanji-heading text-red-500 group-hover:scale-110 transition">誅</span>
+                <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-600 rounded-full animate-ping"></span>
               </div>
               <div>
-                <h1 className="text-2xl font-bold tracking-tight">DOMPETKU</h1>
-                <p className="text-xs text-slate-400">Pencatatan Keuangan Multi-Device & Google Sheets Sync</p>
+                <div className="flex items-center space-x-2">
+                  <h1 className="text-2xl md:text-3xl font-black tracking-wider text-white font-cinzel">
+                    DOMPET<span className="text-red-600">KU</span>
+                  </h1>
+                  <span className="bg-red-900/60 text-red-300 border border-red-700/60 px-2 py-0.5 rounded text-[10px] uppercase font-mono tracking-widest">
+                    TENCHU SHINOBI EDITION
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5 font-jp">
+                  天誅 財宝の巻 — Multi-Device Treasury &amp; Google Sheets Stealth Sync
+                </p>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            {/* Header Action Buttons */}
+            <div className="flex flex-wrap items-center gap-3">
               <button 
                 onClick={syncFromSheets}
                 disabled={isLoading}
-                className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-sm font-semibold flex items-center space-x-2 transition shadow-sm disabled:opacity-50"
+                className="bg-gradient-to-r from-red-900 via-red-950 to-black hover:from-red-800 hover:to-red-900 text-amber-400 border border-red-700/80 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center space-x-2 transition shadow-md disabled:opacity-50"
               >
-                <i className={`fa-solid fa-rotate ${isLoading ? 'animate-spin' : ''}`}></i>
-                <span>{isLoading ? 'Menyinkronkan...' : 'Tersinkron Sheets'}</span>
+                <i className={`fa-solid fa-rotate ${isLoading ? 'animate-spin text-red-400' : 'text-amber-500'}`}></i>
+                <span>{isLoading ? 'Menyinkronkan...' : 'Sinkron Sheets'}</span>
               </button>
 
               <button 
-                onClick={() => setHideBalance(!hideBalance)}
-                className="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-2 rounded-xl text-sm font-medium transition"
+                onClick={() => {
+                  playSound('stealth');
+                  setHideBalance(!hideBalance);
+                }}
+                className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition border flex items-center space-x-2 ${
+                  hideBalance 
+                    ? 'bg-slate-900/80 border-slate-700 text-slate-300 hover:border-slate-500' 
+                    : 'bg-red-950/60 border-red-600 text-red-400 stealth-eye-glow'
+                }`}
               >
-                <i className={`fa-solid ${hideBalance ? 'fa-eye-slash' : 'fa-eye'} mr-1.5`}></i>
-                {hideBalance ? 'Tampilkan Saldo' : 'Sembunyikan Saldo'}
+                <i className={`fa-solid ${hideBalance ? 'fa-eye-slash text-slate-400' : 'fa-eye text-red-500'}`}></i>
+                <span>{hideBalance ? 'Mode Stealth' : 'Buka Saldo'}</span>
               </button>
 
               <button 
-                onClick={() => setShowSettings(true)}
-                className="bg-slate-800 hover:bg-slate-700 text-slate-200 p-2.5 rounded-xl text-sm transition"
-                title="Pengaturan Integrasi"
+                onClick={() => {
+                  playSound('scroll');
+                  setShowSettings(true);
+                }}
+                className="bg-slate-900/80 border border-slate-700 hover:border-amber-500 text-amber-400 p-2.5 rounded-xl text-xs transition"
+                title="Pengaturan Google Apps Script"
               >
-                <i className="fa-solid fa-gear text-lg"></i>
+                <i className="fa-solid fa-gear text-base"></i>
               </button>
             </div>
           </header>
 
-          {/* Overall Balance Summary Cards */}
+          {/* Grand Treasury Overview Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-5 rounded-2xl shadow-lg border border-slate-800 flex items-center justify-between">
+            
+            {/* Grand Total */}
+            <div className="ninja-card p-5 rounded-2xl border-l-4 border-l-amber-500 flex items-center justify-between">
               <div>
-                <span className="text-xs uppercase tracking-wider text-indigo-300 font-semibold">Total Saldo Keseluruhan</span>
-                <div className="text-2xl sm:text-3xl font-extrabold mt-1 text-white">
+                <div className="flex items-center space-x-2">
+                  <span className="text-[10px] uppercase font-bold tracking-widest text-amber-400 font-cinzel">Total Perbendaharaan</span>
+                  <span className="text-xs text-amber-600 font-jp">総資産</span>
+                </div>
+                <div className="text-2xl sm:text-3xl font-black mt-1 text-white font-cinzel tracking-tight">
                   {hideBalance ? 'Rp •••••••••' : `Rp ${totalMetrics.grandTotal.toLocaleString('id-ID')}`}
                 </div>
-                <span className="text-[11px] text-slate-400 mt-1 block">Gabungan dari seluruh dompet</span>
+                <span className="text-[11px] text-slate-500 mt-1 block">Gabungan dari seluruh kantung ninja</span>
               </div>
-              <div className="w-12 h-12 bg-indigo-500/20 text-indigo-400 rounded-xl flex items-center justify-center text-2xl border border-indigo-500/30 shadow-inner">
+              <div className="w-12 h-12 bg-amber-950/40 text-amber-400 rounded-xl flex items-center justify-center text-2xl border border-amber-600/30">
                 <i className="fa-solid fa-vault"></i>
               </div>
             </div>
 
-            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center justify-between">
+            {/* Total Income */}
+            <div className="ninja-card p-5 rounded-2xl border-l-4 border-l-emerald-500 flex items-center justify-between">
               <div>
-                <span className="text-xs uppercase tracking-wider text-emerald-600 font-bold">Total Pemasukan</span>
-                <div className="text-xl font-bold text-slate-900 mt-1">
+                <div className="flex items-center space-x-2">
+                  <span className="text-[10px] uppercase font-bold tracking-widest text-emerald-400 font-cinzel">Hasil Misi / Pemasukan</span>
+                  <span className="text-xs text-emerald-600 font-jp">報酬</span>
+                </div>
+                <div className="text-xl font-extrabold text-white mt-1 font-cinzel">
                   {hideBalance ? 'Rp •••••••••' : `Rp ${totalMetrics.totalInc.toLocaleString('id-ID')}`}
                 </div>
-                <span className="text-[11px] text-slate-400 mt-1 block">Akumulasi seluruh transaksi</span>
+                <span className="text-[11px] text-slate-500 mt-1 block">Akumulasi pendapatan bounty</span>
               </div>
-              <div className="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center text-xl">
-                <i className="fa-solid fa-arrow-down"></i>
+              <div className="w-11 h-11 bg-emerald-950/40 text-emerald-400 rounded-xl flex items-center justify-center text-xl border border-emerald-600/30">
+                <i className="fa-solid fa-scroll"></i>
               </div>
             </div>
 
-            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex items-center justify-between">
+            {/* Total Expense */}
+            <div className="ninja-card p-5 rounded-2xl border-l-4 border-l-red-600 flex items-center justify-between">
               <div>
-                <span className="text-xs uppercase tracking-wider text-rose-600 font-bold">Total Pengeluaran</span>
-                <div className="text-xl font-bold text-slate-900 mt-1">
+                <div className="flex items-center space-x-2">
+                  <span className="text-[10px] uppercase font-bold tracking-widest text-red-400 font-cinzel">Biaya Operasi / Pengeluaran</span>
+                  <span className="text-xs text-red-600 font-jp">消費</span>
+                </div>
+                <div className="text-xl font-extrabold text-white mt-1 font-cinzel">
                   {hideBalance ? 'Rp •••••••••' : `Rp ${totalMetrics.totalExp.toLocaleString('id-ID')}`}
                 </div>
-                <span className="text-[11px] text-slate-400 mt-1 block">Akumulasi seluruh transaksi</span>
+                <span className="text-[11px] text-slate-500 mt-1 block">Akumulasi perlengkapan &amp; ransum</span>
               </div>
-              <div className="w-10 h-10 bg-rose-100 text-rose-600 rounded-xl flex items-center justify-center text-xl">
-                <i className="fa-solid fa-arrow-up"></i>
+              <div className="w-11 h-11 bg-red-950/40 text-red-400 rounded-xl flex items-center justify-center text-xl border border-red-600/30">
+                <i className="fa-solid fa-ninja"></i>
               </div>
             </div>
           </div>
 
-          {/* Section Header */}
+          {/* Section Title */}
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">Rincian Saldo Per Dompet</h3>
-            <span className="text-xs text-slate-400 font-medium">{defaultWallets.length} Dompet Aktif</span>
+            <h3 className="text-xs font-bold uppercase tracking-widest text-amber-500 flex items-center gap-2 font-cinzel">
+              <i className="fa-solid fa-pouch-tobacco"></i>
+              <span>Kantung Perbendaharaan Ninja</span>
+            </h3>
+            <span className="text-xs text-slate-500 font-jp">{defaultWallets.length} Posisi Dompet</span>
           </div>
 
           {/* Wallet Balance Cards */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
             {defaultWallets.map((w, idx) => {
               const bal = walletBalances[w] || 0;
-              const bgColors = [
-                'from-orange-500 to-amber-600',
-                'from-teal-600 to-emerald-700',
-                'from-purple-600 to-indigo-700',
-                'from-emerald-600 to-teal-700',
-                'from-red-600 to-rose-700',
-                'from-blue-600 to-indigo-700'
-              ];
               return (
-                <div key={w} className={`bg-gradient-to-br ${bgColors[idx % bgColors.length]} text-white p-4 rounded-2xl shadow-md flex flex-col justify-between`}>
-                  <span className="text-xs font-medium text-white/80">Saldo Saat Ini</span>
+                <div 
+                  key={w} 
+                  className="bg-slate-950/80 border border-slate-800 hover:border-amber-600/60 p-4 rounded-xl shadow-lg transition flex flex-col justify-between group relative overflow-hidden"
+                >
+                  <div className="flex justify-between items-center text-slate-400 text-xs">
+                    <span className="text-[10px] uppercase tracking-wider text-slate-500">Saldo</span>
+                    <i className="fa-solid fa-sack-dollar text-amber-600/60 group-hover:text-amber-400 transition"></i>
+                  </div>
                   <div className="mt-2">
-                    <div className="text-xs font-bold uppercase tracking-wider text-white/90">{w}</div>
-                    <div className="text-lg font-bold truncate">
-                      {hideBalance ? 'Rp •••••••' : `Rp ${bal.toLocaleString('id-ID')}`}
+                    <div className="text-xs font-bold text-amber-400 tracking-wide font-cinzel">{w}</div>
+                    <div className="text-base font-extrabold text-white truncate font-mono mt-0.5">
+                      {hideBalance ? 'Rp •••••' : `Rp ${bal.toLocaleString('id-ID')}`}
                     </div>
                   </div>
                 </div>
@@ -524,30 +691,31 @@
           </div>
 
           {/* Monthly Financial History Summary Section */}
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/80 mb-6">
+          <div className="ninja-card rounded-2xl p-5 mb-6 border border-slate-800">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4">
               <div>
-                <h3 className="text-base font-bold text-slate-900 flex items-center space-x-2">
-                  <i className="fa-solid fa-calendar-days text-indigo-600"></i>
-                  <span>Riwayat Keuangan Per Bulan</span>
+                <h3 className="text-base font-bold text-white flex items-center space-x-2 font-cinzel">
+                  <i className="fa-solid fa-book-bookmark text-amber-500"></i>
+                  <span>Gulungan Riwayat Bulanan</span>
+                  <span className="text-xs font-jp text-amber-600 font-normal"> 月次記録</span>
                 </h3>
-                <p className="text-xs text-slate-400">Ringkasan total pemasukan, pengeluaran, dan cashflow bersih setiap bulan</p>
+                <p className="text-xs text-slate-400">Ringkasan total perolehan dan pengeluaran per periode bulan</p>
               </div>
-              <span className="text-xs bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full font-semibold">
-                {monthlyMetrics.length} Bulan Tercatat
+              <span className="text-xs bg-red-950 border border-red-800 text-red-300 px-3 py-1 rounded-full font-mono">
+                {monthlyMetrics.length} Periode
               </span>
             </div>
 
             {monthlyMetrics.length === 0 ? (
-              <p className="text-xs text-slate-400 text-center py-4">Belum ada data bulanan.</p>
+              <p className="text-xs text-slate-500 text-center py-4 font-jp">Belum ada gulungan data bulanan.</p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {monthlyMetrics.map(m => (
-                  <div key={m.ym} className="bg-slate-50/80 rounded-xl p-4 border border-slate-200/80 hover:shadow-md transition">
-                    <div className="flex justify-between items-center pb-2 border-b border-slate-200/60 mb-3">
-                      <span className="font-bold text-slate-800 text-sm">{m.label}</span>
-                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                        m.net >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
+                  <div key={m.ym} className="bg-slate-950/60 rounded-xl p-4 border border-slate-800/80 hover:border-slate-700 transition">
+                    <div className="flex justify-between items-center pb-2 border-b border-slate-800 mb-3">
+                      <span className="font-bold text-amber-400 text-sm font-cinzel">{m.label}</span>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider ${
+                        m.net >= 0 ? 'bg-emerald-950/80 border-emerald-700 text-emerald-400' : 'bg-red-950/80 border-red-700 text-red-400'
                       }`}>
                         {m.net >= 0 ? 'Surplus' : 'Defisit'}
                       </span>
@@ -555,28 +723,28 @@
 
                     <div className="space-y-2 text-xs">
                       <div className="flex justify-between items-center">
-                        <span className="text-slate-500 flex items-center">
+                        <span className="text-slate-400 flex items-center">
                           <i className="fa-solid fa-arrow-down text-emerald-500 mr-1.5"></i>
-                          Total Pemasukan
+                          Hasil Misi
                         </span>
-                        <span className="font-bold text-emerald-600">
+                        <span className="font-bold text-emerald-400 font-mono">
                           {hideBalance ? 'Rp •••••••' : `+ Rp ${m.income.toLocaleString('id-ID')}`}
                         </span>
                       </div>
 
                       <div className="flex justify-between items-center">
-                        <span className="text-slate-500 flex items-center">
-                          <i className="fa-solid fa-arrow-up text-rose-500 mr-1.5"></i>
-                          Total Pengeluaran
+                        <span className="text-slate-400 flex items-center">
+                          <i className="fa-solid fa-arrow-up text-red-500 mr-1.5"></i>
+                          Biaya Misi
                         </span>
-                        <span className="font-bold text-rose-600">
+                        <span className="font-bold text-red-400 font-mono">
                           {hideBalance ? 'Rp •••••••' : `- Rp ${m.expense.toLocaleString('id-ID')}`}
                         </span>
                       </div>
 
-                      <div className="pt-2 border-t border-slate-200/60 flex justify-between items-center font-semibold text-slate-800">
-                        <span>Cashflow Bersih</span>
-                        <span className={m.net >= 0 ? 'text-emerald-700' : 'text-rose-700'}>
+                      <div className="pt-2 border-t border-slate-800/80 flex justify-between items-center font-semibold text-slate-300">
+                        <span className="font-cinzel text-[11px]">Net Cashflow</span>
+                        <span className={`font-mono ${m.net >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                           {hideBalance ? 'Rp •••••••' : `${m.net >= 0 ? '+' : ''} Rp ${m.net.toLocaleString('id-ID')}`}
                         </span>
                       </div>
@@ -587,16 +755,17 @@
             )}
           </div>
 
-          {/* Main Grid Section */}
+          {/* Main Content Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left Column: Transaction History */}
-            <div className="lg:col-span-2 bg-white rounded-2xl p-5 shadow-sm border border-slate-200/80">
+            
+            {/* Left Column: Transaction List */}
+            <div className="lg:col-span-2 ninja-card rounded-2xl p-5 border border-slate-800">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-5">
                 <div>
-                  <h2 className="text-lg font-bold text-slate-900">
-                    Riwayat Transaksi 
-                    <span className="ml-2 text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full font-medium">
-                      {filteredTransactions.length} Transaksi
+                  <h2 className="text-lg font-bold text-white font-cinzel flex items-center gap-2">
+                    <span>Catatan Transaksi</span>
+                    <span className="text-xs bg-red-950 text-red-300 border border-red-800 px-2.5 py-0.5 rounded-full font-mono font-normal">
+                      {filteredTransactions.length} Log
                     </span>
                   </h2>
                 </div>
@@ -604,24 +773,24 @@
                 {/* Add Transaction Buttons */}
                 <div className="flex flex-wrap gap-2">
                   <button 
-                    onClick={() => { setModalType('Pengeluaran'); setShowAddModal(true); }}
-                    className="bg-rose-600 hover:bg-rose-700 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1"
+                    onClick={() => { playSound('scroll'); setModalType('Pengeluaran'); setShowAddModal(true); }}
+                    className="bg-gradient-to-r from-red-900 to-red-950 hover:from-red-800 hover:to-red-900 text-red-200 border border-red-700 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 shadow"
                   >
                     <i className="fa-solid fa-minus-circle"></i>
                     <span>Pengeluaran</span>
                   </button>
 
                   <button 
-                    onClick={() => { setModalType('Pemasukan'); setShowAddModal(true); }}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1"
+                    onClick={() => { playSound('scroll'); setModalType('Pemasukan'); setShowAddModal(true); }}
+                    className="bg-gradient-to-r from-emerald-900 to-emerald-950 hover:from-emerald-800 hover:to-emerald-900 text-emerald-200 border border-emerald-700 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 shadow"
                   >
                     <i className="fa-solid fa-plus-circle"></i>
                     <span>Pemasukan</span>
                   </button>
 
                   <button 
-                    onClick={() => { setModalType('Transfer'); setShowAddModal(true); }}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1"
+                    onClick={() => { playSound('scroll'); setModalType('Transfer'); setShowAddModal(true); }}
+                    className="bg-gradient-to-r from-amber-900 to-amber-950 hover:from-amber-800 hover:to-amber-900 text-amber-200 border border-amber-700 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 shadow"
                   >
                     <i className="fa-solid fa-arrow-right-arrow-left"></i>
                     <span>Transfer</span>
@@ -634,7 +803,7 @@
                 <select 
                   value={filterMonth} 
                   onChange={(e) => setFilterMonth(e.target.value)}
-                  className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-amber-500"
                 >
                   <option value="Semua">Semua Bulan</option>
                   {monthlyMetrics.map(m => <option key={m.ym} value={m.ym}>{m.label}</option>)}
@@ -643,18 +812,18 @@
                 <select 
                   value={filterWallet} 
                   onChange={(e) => setFilterWallet(e.target.value)}
-                  className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-amber-500"
                 >
-                  <option value="Semua">Semua Dompet</option>
+                  <option value="Semua">Semua Kantung</option>
                   {defaultWallets.map(w => <option key={w} value={w}>{w}</option>)}
                 </select>
 
                 <select 
                   value={filterType} 
                   onChange={(e) => setFilterType(e.target.value)}
-                  className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-amber-500"
                 >
-                  <option value="Semua">Semua Tipe</option>
+                  <option value="Semua">Semua Jenis</option>
                   <option value="Pemasukan">Pemasukan</option>
                   <option value="Pengeluaran">Pengeluaran</option>
                   <option value="Transfer">Transfer</option>
@@ -665,53 +834,53 @@
                   placeholder="Cari..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-amber-500"
                 />
               </div>
 
               {/* Transactions Table */}
-              <div className="overflow-x-auto rounded-xl border border-slate-100">
+              <div className="overflow-x-auto rounded-xl border border-slate-800/80 bg-slate-950/40">
                 <table className="w-full text-left text-sm">
-                  <thead className="bg-slate-50 text-slate-500 font-semibold text-xs uppercase tracking-wider">
+                  <thead className="bg-slate-900/90 text-slate-400 font-cinzel text-[11px] uppercase tracking-wider border-b border-slate-800">
                     <tr>
                       <th className="p-3">Tanggal</th>
                       <th className="p-3">Tipe</th>
-                      <th className="p-3">Dompet</th>
-                      <th className="p-3">Kategori & Catatan</th>
-                      <th className="p-3 text-right">Jumlah (Rp)</th>
-                      <th className="p-3 text-center">Aksi</th>
+                      <th className="p-3">Kantung</th>
+                      <th className="p-3">Kategori &amp; Keterangan</th>
+                      <th className="p-3 text-right">Jumlah</th>
+                      <th className="p-3 text-center">Tumpas</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-slate-800/60">
                     {filteredTransactions.length === 0 ? (
                       <tr>
-                        <td colSpan="6" className="text-center py-8 text-slate-400">
-                          <i className="fa-regular fa-folder-open text-3xl mb-2 block"></i>
-                          Tidak ada transaksi yang ditemukan.
+                        <td colSpan="6" className="text-center py-10 text-slate-500">
+                          <i className="fa-solid fa-torii-gate text-3xl mb-2 block text-slate-700"></i>
+                          Tidak ada catatan transaksi ditemukan.
                         </td>
                       </tr>
                     ) : (
                       filteredTransactions.map((tx) => (
-                        <tr key={tx.id} className="hover:bg-slate-50/80 transition">
-                          <td className="p-3 font-mono text-xs text-slate-500 whitespace-nowrap">{tx.date}</td>
+                        <tr key={tx.id} className="hover:bg-slate-900/60 transition group">
+                          <td className="p-3 font-mono text-xs text-slate-400 whitespace-nowrap">{tx.date}</td>
                           <td className="p-3">
-                            <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                              tx.type === 'Pemasukan' ? 'bg-emerald-100 text-emerald-700' :
-                              tx.type === 'Pengeluaran' ? 'bg-rose-100 text-rose-700' :
-                              'bg-indigo-100 text-indigo-700'
+                            <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-bold uppercase tracking-wider border ${
+                              tx.type === 'Pemasukan' ? 'bg-emerald-950/80 border-emerald-700 text-emerald-400' :
+                              tx.type === 'Pengeluaran' ? 'bg-red-950/80 border-red-700 text-red-400' :
+                              'bg-amber-950/80 border-amber-700 text-amber-400'
                             }`}>
                               {tx.type}
                             </span>
                           </td>
-                          <td className="p-3 font-medium text-slate-700">{tx.wallet}</td>
+                          <td className="p-3 font-medium text-slate-300 text-xs font-cinzel">{tx.wallet}</td>
                           <td className="p-3">
-                            <div className="font-medium text-slate-800">{tx.category || '-'}</div>
-                            {tx.notes && <div className="text-xs text-slate-400">{tx.notes}</div>}
+                            <div className="font-medium text-slate-200 text-xs">{tx.category || '-'}</div>
+                            {tx.notes && <div className="text-[11px] text-slate-500 font-jp">{tx.notes}</div>}
                           </td>
-                          <td className={`p-3 text-right font-bold whitespace-nowrap ${
-                            tx.type === 'Pemasukan' ? 'text-emerald-600' :
-                            tx.type === 'Pengeluaran' ? 'text-rose-600' :
-                            'text-indigo-600'
+                          <td className={`p-3 text-right font-bold font-mono text-xs whitespace-nowrap ${
+                            tx.type === 'Pemasukan' ? 'text-emerald-400' :
+                            tx.type === 'Pengeluaran' ? 'text-red-400' :
+                            'text-amber-400'
                           }`}>
                             {tx.type === 'Pemasukan' ? '+ ' : tx.type === 'Pengeluaran' ? '- ' : ''}
                             Rp {Number(tx.amount).toLocaleString('id-ID')}
@@ -720,10 +889,10 @@
                             <button 
                               onClick={() => handleDeleteTransaction(tx)}
                               disabled={deletingId === tx.id}
-                              className="text-slate-400 hover:text-rose-600 p-2 rounded-lg transition disabled:opacity-30"
-                              title="Hapus Transaksi (Terhapus dari Google Sheets)"
+                              className="text-slate-600 hover:text-red-500 p-1.5 rounded transition disabled:opacity-30"
+                              title="Tumpas Catatan (Hapus dari Google Sheets)"
                             >
-                              <i className={`fa-solid ${deletingId === tx.id ? 'fa-spinner animate-spin text-rose-600' : 'fa-trash-can'}`}></i>
+                              <i className={`fa-solid ${deletingId === tx.id ? 'fa-spinner animate-spin text-red-500' : 'fa-skull'}`}></i>
                             </button>
                           </td>
                         </tr>
@@ -734,72 +903,83 @@
               </div>
             </div>
 
-            {/* Right Column: Analytics Chart */}
-            <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/80 flex flex-col justify-between">
+            {/* Right Column: Analytics & Info */}
+            <div className="ninja-card rounded-2xl p-5 border border-slate-800 flex flex-col justify-between">
               <div>
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="font-bold text-slate-900">Pengeluaran per Kategori</h3>
-                  <span className="text-xs text-slate-400">Bulan Ini</span>
+                  <h3 className="font-bold text-white font-cinzel">Pengeluaran Per Kategori</h3>
+                  <span className="text-xs text-amber-500 font-jp">分析</span>
                 </div>
                 <div className="relative h-64 w-full">
                   <canvas ref={chartRef}></canvas>
                 </div>
               </div>
 
-              <div className="mt-6 p-4 bg-indigo-50 rounded-xl border border-indigo-100 text-xs text-indigo-900">
-                <i className="fa-solid fa-shield-halved text-indigo-600 text-sm mr-2"></i>
-                <b>Garansi Sinkronisasi:</b> Setiap aksi hapus pada aplikasi web ini dikirim langsung secara *real-time* ke Google Sheets Anda tanpa kendala pemblokiran CORS.
+              <div className="mt-6 p-4 bg-red-950/30 rounded-xl border border-red-900/40 text-xs text-slate-300 space-y-1.5">
+                <div className="font-bold text-red-400 font-cinzel flex items-center gap-1.5">
+                  <i className="fa-solid fa-shield-halved"></i>
+                  <span>Proteksi Stealth Sync:</span>
+                </div>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  Setiap penghapusan data dikirim secara *real-time* ke Google Sheets tanpa terhalang proteksi CORS browser.
+                </p>
               </div>
             </div>
           </div>
 
-          {/* Modal Add Transaction */}
+          {/* Modal Add Transaction (Scroll Theme) */}
           {showAddModal && (
-            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-              <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl animate-fade-in">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-bold text-slate-900">Tambah {modalType}</h3>
-                  <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600">
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <div className="ninja-card rounded-2xl max-w-md w-full p-6 border-2 border-red-900 shadow-2xl relative">
+                <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-800">
+                  <h3 className="text-lg font-bold text-white font-cinzel flex items-center gap-2">
+                    <i className="fa-solid fa-scroll text-amber-500"></i>
+                    <span>Rekam {modalType}</span>
+                  </h3>
+                  <button 
+                    onClick={() => setShowAddModal(false)} 
+                    className="text-slate-500 hover:text-red-400"
+                  >
                     <i className="fa-solid fa-xmark text-lg"></i>
                   </button>
                 </div>
 
                 <form onSubmit={handleAddSubmit} className="space-y-4">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 mb-1">Tanggal</label>
+                    <label className="block text-xs font-semibold text-slate-400 mb-1">Tanggal Tanggal Misi</label>
                     <input 
                       type="date"
                       value={formData.date}
                       onChange={(e) => setFormData({...formData, date: e.target.value})}
                       required
-                      className="w-full border border-slate-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-indigo-500"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-slate-200 focus:border-red-600"
                     />
                   </div>
 
                   {modalType !== 'Transfer' ? (
                     <>
                       <div>
-                        <label className="block text-xs font-semibold text-slate-600 mb-1">Dompet</label>
+                        <label className="block text-xs font-semibold text-slate-400 mb-1">Kantung Ninja</label>
                         <select 
                           value={formData.wallet}
                           onChange={(e) => setFormData({...formData, wallet: e.target.value})}
-                          className="w-full border border-slate-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-indigo-500"
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-slate-200 focus:border-red-600"
                         >
                           {defaultWallets.map(w => <option key={w} value={w}>{w}</option>)}
                         </select>
                       </div>
 
                       <div>
-                        <label className="block text-xs font-semibold text-slate-600 mb-1">Kategori</label>
+                        <label className="block text-xs font-semibold text-slate-400 mb-1">Kategori Operational</label>
                         <select 
                           value={formData.category}
                           onChange={(e) => setFormData({...formData, category: e.target.value})}
-                          className="w-full border border-slate-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-indigo-500"
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-slate-200 focus:border-red-600"
                         >
-                          <option value="Makanan & Minuman">Makanan & Minuman</option>
+                          <option value="Makanan & Minuman">Makanan &amp; Minuman</option>
                           <option value="Transportasi">Transportasi</option>
                           <option value="Belanja">Belanja</option>
-                          <option value="Tagihan & Utilitas">Tagihan & Utilitas</option>
+                          <option value="Tagihan & Utilitas">Tagihan &amp; Utilitas</option>
                           <option value="Hiburan">Hiburan</option>
                           <option value="Gaji / Pendapatan">Gaji / Pendapatan</option>
                           <option value="Lainnya">Lainnya</option>
@@ -809,22 +989,22 @@
                   ) : (
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-xs font-semibold text-slate-600 mb-1">Dari Dompet</label>
+                        <label className="block text-xs font-semibold text-slate-400 mb-1">Dari Kantung</label>
                         <select 
                           value={formData.wallet}
                           onChange={(e) => setFormData({...formData, wallet: e.target.value})}
-                          className="w-full border border-slate-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-indigo-500"
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-slate-200 focus:border-amber-600"
                         >
                           {defaultWallets.map(w => <option key={w} value={w}>{w}</option>)}
                         </select>
                       </div>
 
                       <div>
-                        <label className="block text-xs font-semibold text-slate-600 mb-1">Ke Dompet</label>
+                        <label className="block text-xs font-semibold text-slate-400 mb-1">Ke Kantung</label>
                         <select 
                           value={formData.walletTo}
                           onChange={(e) => setFormData({...formData, walletTo: e.target.value})}
-                          className="w-full border border-slate-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-indigo-500"
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-slate-200 focus:border-amber-600"
                         >
                           {defaultWallets.map(w => <option key={w} value={w}>{w}</option>)}
                         </select>
@@ -833,41 +1013,41 @@
                   )}
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 mb-1">Jumlah (Rp)</label>
+                    <label className="block text-xs font-semibold text-slate-400 mb-1">Jumlah Nominal (Rp)</label>
                     <input 
                       type="number"
                       placeholder="0"
                       value={formData.amount}
                       onChange={(e) => setFormData({...formData, amount: e.target.value})}
                       required
-                      className="w-full border border-slate-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-indigo-500"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm font-mono text-white focus:border-red-600"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 mb-1">Keterangan / Catatan</label>
+                    <label className="block text-xs font-semibold text-slate-400 mb-1">Catatan Misi</label>
                     <input 
                       type="text"
-                      placeholder="Contoh: Sarapan pagi, bayar listrik..."
+                      placeholder="Contoh: Ransum beras, senjataku..."
                       value={formData.notes}
                       onChange={(e) => setFormData({...formData, notes: e.target.value})}
-                      className="w-full border border-slate-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-indigo-500"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-slate-200 focus:border-red-600"
                     />
                   </div>
 
-                  <div className="pt-2 flex justify-end space-x-2">
+                  <div className="pt-3 flex justify-end space-x-2">
                     <button 
                       type="button" 
                       onClick={() => setShowAddModal(false)}
-                      className="px-4 py-2 rounded-xl text-sm font-semibold text-slate-500 hover:bg-slate-100"
+                      className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-900"
                     >
                       Batal
                     </button>
                     <button 
                       type="submit"
-                      className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold shadow-md"
+                      className="px-5 py-2 bg-gradient-to-r from-red-900 to-black hover:from-red-800 border border-red-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-lg"
                     >
-                      Simpan Transaksi
+                      Metrai Catatan
                     </button>
                   </div>
                 </form>
@@ -877,35 +1057,38 @@
 
           {/* Modal Settings */}
           {showSettings && (
-            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-              <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-bold text-slate-900">Pengaturan Google Apps Script</h3>
-                  <button onClick={() => setShowSettings(false)} className="text-slate-400 hover:text-slate-600">
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <div className="ninja-card rounded-2xl max-w-lg w-full p-6 border border-slate-800 shadow-2xl">
+                <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-800">
+                  <h3 className="text-lg font-bold text-white font-cinzel flex items-center gap-2">
+                    <i className="fa-solid fa-gear text-amber-500"></i>
+                    <span>Integrasi Google Apps Script</span>
+                  </h3>
+                  <button onClick={() => setShowSettings(false)} className="text-slate-500 hover:text-slate-300">
                     <i className="fa-solid fa-xmark text-lg"></i>
                   </button>
                 </div>
 
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">URL Web App Google Apps Script</label>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">URL Web App Deployment</label>
                     <input 
                       type="url"
                       placeholder="https://script.google.com/macros/s/.../exec"
                       value={scriptUrl}
                       onChange={(e) => setScriptUrl(e.target.value)}
-                      className="w-full border border-slate-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-indigo-500 font-mono text-xs"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-amber-400 font-mono focus:border-amber-500"
                     />
-                    <p className="text-xs text-slate-400 mt-1">
-                      Tempelkan URL Web App yang didapat setelah memilih menu <b>Deploy &gt; New Deployment</b> di Apps Script.
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      Tempelkan URL Web App dari menu <b>Deploy &gt; New Deployment</b> di Apps Script.
                     </p>
                   </div>
 
-                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs space-y-2">
-                    <div className="font-bold text-slate-800">⚠️ Catatan Pengaturan Deployment GAS:</div>
-                    <ul className="list-disc pl-4 space-y-1 text-slate-600">
+                  <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs space-y-2">
+                    <div className="font-bold text-amber-400">⚠️ Syarat Akses Web App:</div>
+                    <ul className="list-disc pl-4 space-y-1 text-slate-400">
                       <li><b>Execute as:</b> <code>Me (Email Anda)</code></li>
-                      <li><b>Who has access:</b> <code>Anyone (Siapa saja)</code> — Mandatory!</li>
+                      <li><b>Who has access:</b> <code>Anyone (Siapa saja)</code></li>
                     </ul>
                   </div>
 
@@ -915,15 +1098,16 @@
                         setShowSettings(false);
                         showNotification('Pengaturan berhasil disimpan!', 'success');
                       }}
-                      className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold shadow-md"
+                      className="px-5 py-2 bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold rounded-xl text-xs uppercase tracking-wider shadow-md"
                     >
-                      Selesai &amp; Simpan
+                      Simpan Pengaturan
                     </button>
                   </div>
                 </div>
               </div>
             </div>
           )}
+
         </div>
       );
     }
