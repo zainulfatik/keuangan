@@ -13,13 +13,12 @@
   <!-- Tailwind CSS & Chart.js -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
   
-  <!-- Fonts & Icons -->
+  <!-- Fonts & Font Awesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800;900&family=Noto+Serif+JP:wght@500;700;900&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Noto+Serif+JP:wght@600;700;900&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
 
   <script>
     tailwind.config = {
@@ -53,14 +52,15 @@
     body {
       background-color: #08080a;
       background-image: 
-        radial-gradient(circle at 50% 0%, rgba(139, 0, 0, 0.18) 0%, transparent 60%),
-        radial-gradient(circle at 10% 80%, rgba(217, 119, 6, 0.08) 0%, transparent 40%),
-        repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.15) 1px, transparent 1px, transparent 2px);
+        radial-gradient(circle at 50% 0%, rgba(139, 0, 0, 0.22) 0%, transparent 65%),
+        radial-gradient(circle at 85% 70%, rgba(217, 119, 6, 0.1) 0%, transparent 45%),
+        repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2) 1px, transparent 1px, transparent 2px);
       font-family: 'Plus Jakarta Sans', sans-serif;
       color: #e2e8f0;
+      overflow-x: hidden;
     }
 
-    /* Rice paper / Scroll texture overlay */
+    /* Ninja Card Container Styling */
     .ninja-card {
       background: linear-gradient(145deg, rgba(22, 21, 28, 0.95), rgba(12, 11, 16, 0.98));
       border: 1px solid #2a2736;
@@ -74,21 +74,16 @@
       top: 0; left: 0; right: 0;
       height: 2px;
       background: linear-gradient(90deg, transparent, #8b0000, #d97706, #8b0000, transparent);
-      opacity: 0.8;
+      opacity: 0.85;
     }
 
     .kanji-watermark {
       font-family: 'Noto Serif JP', serif;
       pointer-events: none;
       user-select: none;
-      opacity: 0.04;
+      opacity: 0.035;
     }
 
-    .scroll-border {
-      border-image: linear-gradient(to bottom, #d97706, #8b0000, #2a2736) 1;
-    }
-
-    /* Glow stealth indicator meter */
     .stealth-eye-glow {
       box-shadow: 0 0 20px rgba(220, 38, 38, 0.6);
       animation: pulseGlow 2.5s infinite alternate;
@@ -99,12 +94,59 @@
       100% { box-shadow: 0 0 25px rgba(220, 38, 38, 0.9); }
     }
 
+    /* Blade Shimmer Animation for Buttons */
+    .blade-btn {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .blade-btn::after {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -150%;
+      width: 60%;
+      height: 200%;
+      background: linear-gradient(60deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+      transform: rotate(25deg);
+      transition: all 0.6s ease;
+    }
+
+    .blade-btn:hover::after {
+      left: 180%;
+    }
+
+    /* Katana Slash Canvas Animation Overlay */
+    .slash-anim-active {
+      animation: slashShake 0.25s ease-in-out;
+    }
+
+    @keyframes slashShake {
+      0% { transform: translate(0, 0) rotate(0deg); }
+      20% { transform: translate(-6px, 4px) rotate(-1deg); }
+      40% { transform: translate(6px, -4px) rotate(1deg); }
+      60% { transform: translate(-4px, -2px) rotate(-0.5deg); }
+      80% { transform: translate(3px, 2px) rotate(0.5deg); }
+      100% { transform: translate(0, 0) rotate(0deg); }
+    }
+
+    /* Smoke Puff Keyframe Effect */
+    @keyframes smokePuff {
+      0% { opacity: 0.8; transform: scale(0.8) translateY(0); }
+      100% { opacity: 0; transform: scale(2.2) translateY(-20px); }
+    }
+
+    .smoke-effect {
+      animation: smokePuff 0.7s ease-out forwards;
+      pointer-events: none;
+    }
+
     .kanji-heading {
       font-family: 'Noto Serif JP', serif;
       letter-spacing: 0.05em;
     }
 
-    /* Custom scrollbar */
+    /* Custom Scrollbar */
     ::-webkit-scrollbar {
       width: 6px;
       height: 6px;
@@ -127,44 +169,162 @@
   <script type="text/babel">
     const { useState, useEffect, useMemo, useRef } = React;
 
-    // Web Audio Sound FX for Tenchu Experience
-    const playSound = (type) => {
+    // Advanced Ninja Web Audio Synthesizer (Realistic Sound Effects)
+    const playNinjaSound = (type) => {
       try {
-        if (!window.AudioContext && !window.webkitAudioContext) return;
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
         const now = ctx.currentTime;
-        if (type === 'slash') { // Katana blade slash for action
+
+        if (type === 'slash') {
+          // Sharp Katana Slice (Metallic Whoosh + Blade Strike)
+          const bufferSize = ctx.sampleRate * 0.18;
+          const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < bufferSize; i++) {
+            data[i] = Math.random() * 2 - 1;
+          }
+
+          const noise = ctx.createBufferSource();
+          noise.buffer = buffer;
+
+          const filter = ctx.createBiquadFilter();
+          filter.type = 'bandpass';
+          filter.frequency.setValueAtTime(3500, now);
+          filter.frequency.exponentialRampToValueAtTime(400, now + 0.15);
+          filter.Q.value = 3;
+
+          const gain = ctx.createGain();
+          gain.gain.setValueAtTime(0.3, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+
+          noise.connect(filter);
+          filter.connect(gain);
+          gain.connect(ctx.destination);
+
+          // Tone sweep overlay for blade shine
+          const osc = ctx.createOscillator();
+          const oscGain = ctx.createGain();
           osc.type = 'sawtooth';
-          osc.frequency.setValueAtTime(800, now);
-          osc.frequency.exponentialRampToValueAtTime(100, now + 0.15);
-          gain.gain.setValueAtTime(0.15, now);
-          gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+          osc.frequency.setValueAtTime(1200, now);
+          osc.frequency.exponentialRampToValueAtTime(150, now + 0.12);
+          oscGain.gain.setValueAtTime(0.2, now);
+          oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+
+          osc.connect(oscGain);
+          oscGain.connect(ctx.destination);
+
+          noise.start(now);
           osc.start(now);
-          osc.stop(now + 0.15);
-        } else if (type === 'scroll') { // Scroll unroll
+          noise.stop(now + 0.18);
+          osc.stop(now + 0.18);
+
+        } else if (type === 'shuriken') {
+          // Fast whizzing shuriken sound
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
           osc.type = 'sine';
-          osc.frequency.setValueAtTime(300, now);
-          osc.frequency.linearRampToValueAtTime(600, now + 0.1);
-          gain.gain.setValueAtTime(0.1, now);
-          gain.gain.linearRampToValueAtTime(0.01, now + 0.1);
+          osc.frequency.setValueAtTime(800, now);
+          osc.frequency.linearRampToValueAtTime(1800, now + 0.05);
+          osc.frequency.linearRampToValueAtTime(300, now + 0.12);
+
+          gain.gain.setValueAtTime(0.15, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+
+          osc.connect(gain);
+          gain.connect(ctx.destination);
           osc.start(now);
-          osc.stop(now + 0.1);
-        } else if (type === 'stealth') { // Hide balance / Stealth sight
-          osc.type = 'triangle';
-          osc.frequency.setValueAtTime(200, now);
-          osc.frequency.exponentialRampToValueAtTime(500, now + 0.2);
-          gain.gain.setValueAtTime(0.2, now);
-          gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
+          osc.stop(now + 0.12);
+
+        } else if (type === 'smoke') {
+          // Ninja smoke bomb poof
+          const bufferSize = ctx.sampleRate * 0.25;
+          const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < bufferSize; i++) {
+            data[i] = Math.random() * 2 - 1;
+          }
+
+          const noise = ctx.createBufferSource();
+          noise.buffer = buffer;
+
+          const filter = ctx.createBiquadFilter();
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(1200, now);
+          filter.frequency.exponentialRampToValueAtTime(100, now + 0.22);
+
+          const gain = ctx.createGain();
+          gain.gain.setValueAtTime(0.35, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
+
+          noise.connect(filter);
+          filter.connect(gain);
+          gain.connect(ctx.destination);
+
+          noise.start(now);
+          noise.stop(now + 0.25);
+
+        } else if (type === 'koto') {
+          // Oriental Traditional Koto / Shamisen Pentatonic Chord (Scroll Unroll)
+          const notes = [293.66, 349.23, 392.00, 440.00, 523.25]; // D minor pentatonic scale
+          notes.forEach((freq, idx) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            const startTime = now + (idx * 0.04);
+
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, startTime);
+
+            gain.gain.setValueAtTime(0, startTime);
+            gain.gain.linearRampToValueAtTime(0.12, startTime + 0.01);
+            gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.35);
+
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+
+            osc.start(startTime);
+            osc.stop(startTime + 0.36);
+          });
+
+        } else if (type === 'stealth') {
+          // Low resonant Ninja Gong / Stealth Eye activation
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(110, now);
+          osc.frequency.exponentialRampToValueAtTime(55, now + 0.6);
+
+          gain.gain.setValueAtTime(0.3, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+
+          osc.connect(gain);
+          gain.connect(ctx.destination);
           osc.start(now);
-          osc.stop(now + 0.2);
+          osc.stop(now + 0.6);
+
+        } else if (type === 'coin') {
+          // Double metallic gold coin clink
+          [0, 0.06].forEach((delay) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            const startTime = now + delay;
+
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(2400 + (delay * 500), startTime);
+
+            gain.gain.setValueAtTime(0.15, startTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.1);
+
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+
+            osc.start(startTime);
+            osc.stop(startTime + 0.1);
+          });
         }
       } catch (e) {
-        // Audio fallback ignore
+        // Audio fallback
       }
     };
 
@@ -175,6 +335,7 @@
       const [isLoading, setIsLoading] = useState(false);
       const [deletingId, setDeletingId] = useState(null);
       const [toast, setToast] = useState(null);
+      const [isSlashing, setIsSlashing] = useState(false);
 
       // Default Wallets (Kantung Ninja)
       const defaultWallets = ["Tas", "Seabank", "Jok", "Lemari", "BNI", "BRI"];
@@ -184,7 +345,8 @@
         const saved = localStorage.getItem('dompetku_txs');
         return saved ? JSON.parse(saved) : [
           { id: 'tx_local_1', date: '2026-09-12', type: 'Pemasukan', wallet: 'Tas', category: 'Gaji / Pendapatan', amount: 1000000, notes: 'Modal Perbendaharaan Ninja' },
-          { id: 'tx_local_2', date: '2026-09-12', type: 'Pengeluaran', wallet: 'Tas', category: 'Makanan & Minuman', amount: 50000, notes: 'Ransum Misi (Miso & Rice)' }
+          { id: 'tx_local_2', date: '2026-09-12', type: 'Pengeluaran', wallet: 'Tas', category: 'Makanan & Minuman', amount: 50000, notes: 'Ransum Misi (Miso & Rice)' },
+          { id: 'tx_local_3', date: '2026-09-15', type: 'Transfer', wallet: 'Tas ➔ Seabank', category: 'Transfer Saldo', amount: 250000, notes: 'Setor Kas Rahasia' }
         ];
       });
 
@@ -218,13 +380,18 @@
         localStorage.setItem('dompetku_script_url', scriptUrl);
       }, [scriptUrl]);
 
+      const triggerKatanaSlashAnim = () => {
+        setIsSlashing(true);
+        setTimeout(() => setIsSlashing(false), 300);
+      };
+
       const showNotification = (msg, type = 'info') => {
         setToast({ msg, type });
         setTimeout(() => setToast(null), 4000);
       };
 
       const syncFromSheets = async () => {
-        playSound('scroll');
+        playNinjaSound('koto');
         if (!scriptUrl) {
           showNotification('⚠️ Masukkan URL Google Apps Script di menu Pengaturan terlebih dahulu!', 'warning');
           setShowSettings(true);
@@ -238,6 +405,7 @@
           if (data.status === 'success' && Array.isArray(data.transactions)) {
             setTransactions(data.transactions);
             showNotification('⚡ Gulungan Perbendaharaan berhasil disinkronkan!', 'success');
+            playNinjaSound('coin');
           } else {
             showNotification('❌ Gagal membaca data: ' + (data.message || 'Format tidak valid'), 'error');
           }
@@ -249,7 +417,9 @@
       };
 
       const handleDeleteTransaction = async (tx) => {
-        playSound('slash');
+        playNinjaSound('slash');
+        triggerKatanaSlashAnim();
+        
         if (!confirm(`Apakah Anda yakin ingin menumpas catatan "${tx.notes || tx.category}" (Rp ${Number(tx.amount).toLocaleString('id-ID')})?`)) {
           return;
         }
@@ -257,9 +427,10 @@
         const previousTxs = [...transactions];
         setTransactions(prev => prev.filter(t => t.id !== tx.id));
         setDeletingId(tx.id);
+        playNinjaSound('smoke');
 
         if (!scriptUrl) {
-          showNotification('Hapus lokal berhasil. (Tambahkan URL Apps Script untuk Google Sheets)', 'info');
+          showNotification('Hapus lokal berhasil. (Tambahkan URL Apps Script untuk sync Google Sheets)', 'info');
           setDeletingId(null);
           return;
         }
@@ -289,6 +460,7 @@
 
           if (result.status === 'success') {
             showNotification('🥷 Catatan BERHASIL DITUMPAS dari Google Sheets!', 'success');
+            playNinjaSound('shuriken');
           } else {
             setTransactions(previousTxs);
             showNotification('❌ Gagal menumpas di Sheets: ' + result.message, 'error');
@@ -326,7 +498,8 @@
 
       const handleAddSubmit = async (e) => {
         e.preventDefault();
-        playSound('slash');
+        playNinjaSound('slash');
+        triggerKatanaSlashAnim();
 
         if (!formData.amount || Number(formData.amount) <= 0) {
           showNotification('⚠️ Masukkan nominal emas/rupiah yang valid!', 'warning');
@@ -359,6 +532,8 @@
           amount: '',
           notes: ''
         });
+
+        playNinjaSound('coin');
 
         if (scriptUrl) {
           try {
@@ -455,7 +630,7 @@
       }, [transactions]);
 
       const filteredTransactions = useMemo(() => {
-        return transactions.filter(tx => {
+        const list = transactions.filter(tx => {
           const matchWallet = filterWallet === 'Semua' || tx.wallet.includes(filterWallet);
           const matchType = filterType === 'Semua' || tx.type === filterType;
           const matchMonth = filterMonth === 'Semua' || (tx.date && String(tx.date).startsWith(filterMonth));
@@ -466,6 +641,16 @@
             (tx.wallet && tx.wallet.toLowerCase().includes(query));
 
           return matchWallet && matchType && matchMonth && matchSearch;
+        });
+
+        // Urutkan berdasarkan tanggal terbaru ke terlama
+        return list.sort((a, b) => {
+          const dateA = a.date || '';
+          const dateB = b.date || '';
+          if (dateA !== dateB) {
+            return dateB.localeCompare(dateA); // Tanggal terbaru di posisi paling atas
+          }
+          return String(b.id || '').localeCompare(String(a.id || ''));
         });
       }, [transactions, filterWallet, filterType, filterMonth, searchQuery]);
 
@@ -519,7 +704,7 @@
       }, [transactions]);
 
       return (
-        <div className="max-w-7xl mx-auto px-4 py-6 relative overflow-hidden">
+        <div className={`max-w-7xl mx-auto px-4 py-6 relative overflow-hidden transition-all duration-200 ${isSlashing ? 'slash-anim-active' : ''}`}>
           
           {/* Subtle Background Kanji Watermark */}
           <div className="absolute top-10 right-10 text-[180px] font-black kanji-watermark text-red-900 leading-none">
@@ -531,7 +716,7 @@
 
           {/* Toast Notification */}
           {toast && (
-            <div className={`fixed top-5 right-5 z-50 px-5 py-3 rounded-lg shadow-2xl text-white font-semibold flex items-center space-x-3 border ${
+            <div className={`fixed top-5 right-5 z-50 px-5 py-3 rounded-lg shadow-2xl text-white font-semibold flex items-center space-x-3 border animate-bounce ${
               toast.type === 'error' ? 'bg-red-950/90 border-red-600 text-red-200' :
               toast.type === 'warning' ? 'bg-amber-950/90 border-amber-600 text-amber-200' :
               toast.type === 'success' ? 'bg-emerald-950/90 border-emerald-600 text-emerald-200' : 'bg-slate-900 border-slate-700'
@@ -541,11 +726,11 @@
             </div>
           )}
 
-          {/* Tenchu Ninja Header */}
+          {/* 1. HEADER TENCHU NINJA */}
           <header className="ninja-card rounded-2xl p-6 mb-6 flex flex-col md:flex-row justify-between items-center gap-4 relative overflow-hidden border-b-2 border-red-900">
             <div className="flex items-center space-x-4">
-              <div className="w-14 h-14 bg-gradient-to-br from-red-900 to-black rounded-xl border border-red-600 flex items-center justify-center text-red-500 shadow-lg relative group">
-                <span className="text-2xl font-black kanji-heading text-red-500 group-hover:scale-110 transition">誅</span>
+              <div className="w-14 h-14 bg-gradient-to-br from-red-900 via-black to-red-950 rounded-xl border border-red-600 flex items-center justify-center text-red-500 shadow-lg relative group">
+                <span className="text-2xl font-black kanji-heading text-red-500 group-hover:scale-125 transition-transform duration-300">誅</span>
                 <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-600 rounded-full animate-ping"></span>
               </div>
               <div>
@@ -558,7 +743,7 @@
                   </span>
                 </div>
                 <p className="text-xs text-slate-400 mt-0.5 font-jp">
-                  天誅 財宝の巻 — Multi-Device Treasury &amp; Google Sheets Stealth Sync
+                  天誅 財宝の巻 — Treasury &amp; Google Sheets Stealth Sync
                 </p>
               </div>
             </div>
@@ -568,7 +753,7 @@
               <button 
                 onClick={syncFromSheets}
                 disabled={isLoading}
-                className="bg-gradient-to-r from-red-900 via-red-950 to-black hover:from-red-800 hover:to-red-900 text-amber-400 border border-red-700/80 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center space-x-2 transition shadow-md disabled:opacity-50"
+                className="blade-btn bg-gradient-to-r from-red-900 via-red-950 to-black hover:from-red-800 hover:to-red-900 text-amber-400 border border-red-700/80 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center space-x-2 transition shadow-md disabled:opacity-50"
               >
                 <i className={`fa-solid fa-rotate ${isLoading ? 'animate-spin text-red-400' : 'text-amber-500'}`}></i>
                 <span>{isLoading ? 'Menyinkronkan...' : 'Sinkron Sheets'}</span>
@@ -576,10 +761,10 @@
 
               <button 
                 onClick={() => {
-                  playSound('stealth');
+                  playNinjaSound('stealth');
                   setHideBalance(!hideBalance);
                 }}
-                className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition border flex items-center space-x-2 ${
+                className={`blade-btn px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition border flex items-center space-x-2 ${
                   hideBalance 
                     ? 'bg-slate-900/80 border-slate-700 text-slate-300 hover:border-slate-500' 
                     : 'bg-red-950/60 border-red-600 text-red-400 stealth-eye-glow'
@@ -591,7 +776,7 @@
 
               <button 
                 onClick={() => {
-                  playSound('scroll');
+                  playNinjaSound('koto');
                   setShowSettings(true);
                 }}
                 className="bg-slate-900/80 border border-slate-700 hover:border-amber-500 text-amber-400 p-2.5 rounded-xl text-xs transition"
@@ -602,95 +787,172 @@
             </div>
           </header>
 
-          {/* Grand Treasury Overview Cards */}
+          {/* 2. TOMBOL TRANSAKSI (POSISI BARU: DI BAWAH HEADER) */}
+          {}
+          <div className="ninja-card rounded-2xl p-5 mb-6 border border-red-900/60 bg-gradient-to-r from-red-950/40 via-black/80 to-amber-950/30">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-xl bg-red-900/40 border border-red-600/50 flex items-center justify-center text-red-400">
+                  <i className="fa-solid fa-hand-holding-dollar text-lg"></i>
+                </div>
+                <div>
+                  <h2 className="text-sm font-bold text-white uppercase tracking-wider font-cinzel flex items-center gap-2">
+                    <span>Aksi Misi Transaksi</span>
+                    <span className="text-[10px] text-amber-500 font-jp normal-case">(取引の実行)</span>
+                  </h2>
+                  <p className="text-xs text-slate-400">Rekam pengeluaran, perolehan hasil misi, atau pindah kas antar kantung</p>
+                </div>
+              </div>
+
+              {/* Big Prominent Action Buttons */}
+              <div className="grid grid-cols-3 gap-3 w-full md:w-auto">
+                {/* Pengeluaran */}
+                <button 
+                  onClick={() => { 
+                    playNinjaSound('slash'); 
+                    triggerKatanaSlashAnim();
+                    setModalType('Pengeluaran'); 
+                    setShowAddModal(true); 
+                  }}
+                  className="blade-btn bg-gradient-to-r from-red-900 to-red-950 hover:from-red-800 hover:to-red-900 text-white border border-red-600 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-300 shadow-lg flex flex-col sm:flex-row items-center justify-center space-y-1 sm:space-y-0 sm:space-x-2 group hover:scale-105"
+                >
+                  <i className="fa-solid fa-minus-circle text-red-400 text-base group-hover:rotate-90 transition-transform"></i>
+                  <span>Pengeluaran</span>
+                </button>
+
+                {/* Pemasukan */}
+                <button 
+                  onClick={() => { 
+                    playNinjaSound('koto'); 
+                    setModalType('Pemasukan'); 
+                    setShowAddModal(true); 
+                  }}
+                  className="blade-btn bg-gradient-to-r from-emerald-900 to-emerald-950 hover:from-emerald-800 hover:to-emerald-900 text-white border border-emerald-600 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-300 shadow-lg flex flex-col sm:flex-row items-center justify-center space-y-1 sm:space-y-0 sm:space-x-2 group hover:scale-105"
+                >
+                  <i className="fa-solid fa-plus-circle text-emerald-400 text-base group-hover:scale-125 transition-transform"></i>
+                  <span>Pemasukan</span>
+                </button>
+
+                {/* Transfer */}
+                <button 
+                  onClick={() => { 
+                    playNinjaSound('shuriken'); 
+                    setModalType('Transfer'); 
+                    setShowAddModal(true); 
+                  }}
+                  className="blade-btn bg-gradient-to-r from-amber-900 to-amber-950 hover:from-amber-800 hover:to-amber-900 text-white border border-amber-600 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-300 shadow-lg flex flex-col sm:flex-row items-center justify-center space-y-1 sm:space-y-0 sm:space-x-2 group hover:scale-105"
+                >
+                  <i className="fa-solid fa-arrow-right-arrow-left text-amber-400 text-base group-hover:rotate-180 transition-transform duration-500"></i>
+                  <span>Transfer</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* 3. DOMPET / KANTUNG PERBENDAHARAAN NINJA (POSISI BARU: SETELAH TOMBOL TRANSAKSI) */}
+          {}
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-xs font-bold uppercase tracking-widest text-amber-500 flex items-center gap-2 font-cinzel">
+                <i className="fa-solid fa-sack-dollar text-amber-500"></i>
+                <span>Kantung Perbendaharaan Ninja (Dompet)</span>
+              </h3>
+              <span className="text-xs text-slate-500 font-jp">{defaultWallets.length} Posisi Dompet</span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+              {defaultWallets.map((w) => {
+                const bal = walletBalances[w] || 0;
+                return (
+                  <div 
+                    key={w} 
+                    onClick={() => {
+                      playNinjaSound('shuriken');
+                      setFilterWallet(filterWallet === w ? 'Semua' : w);
+                    }}
+                    className={`p-4 rounded-xl shadow-lg transition-all duration-300 flex flex-col justify-between cursor-pointer group relative overflow-hidden border ${
+                      filterWallet === w 
+                        ? 'bg-gradient-to-b from-red-950/90 to-slate-950 border-red-600 scale-105' 
+                        : 'bg-slate-950/80 border-slate-800 hover:border-amber-600/60 hover:-translate-y-1'
+                    }`}
+                  >
+                    <div className="flex justify-between items-center text-slate-400 text-xs">
+                      <span className="text-[10px] uppercase tracking-wider text-slate-500 font-mono">Dompet</span>
+                      <i className={`fa-solid fa-kaaba ${filterWallet === w ? 'text-red-400' : 'text-amber-600/60'} group-hover:text-amber-400 transition`}></i>
+                    </div>
+                    <div className="mt-3">
+                      <div className="text-xs font-bold text-amber-400 tracking-wide font-cinzel flex items-center gap-1">
+                        <span>{w}</span>
+                        {filterWallet === w && <i className="fa-solid fa-check text-[10px] text-red-500"></i>}
+                      </div>
+                      <div className="text-base font-extrabold text-white truncate font-mono mt-1">
+                        {hideBalance ? 'Rp •••••' : `Rp ${bal.toLocaleString('id-ID')}`}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 4. TOTAL UANG / GRAND TREASURY SUMMARY (POSISI BARU: SETELAH DOMPET) */}
+          {}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             
-            {/* Grand Total */}
-            <div className="ninja-card p-5 rounded-2xl border-l-4 border-l-amber-500 flex items-center justify-between">
+            {/* Grand Total Balance */}
+            <div className="ninja-card p-5 rounded-2xl border-l-4 border-l-amber-500 flex items-center justify-between hover:border-amber-500/80 transition group">
               <div>
                 <div className="flex items-center space-x-2">
-                  <span className="text-[10px] uppercase font-bold tracking-widest text-amber-400 font-cinzel">Total Perbendaharaan</span>
+                  <span className="text-[10px] uppercase font-bold tracking-widest text-amber-400 font-cinzel">Total Perbendaharaan Uang</span>
                   <span className="text-xs text-amber-600 font-jp">総資産</span>
                 </div>
-                <div className="text-2xl sm:text-3xl font-black mt-1 text-white font-cinzel tracking-tight">
+                <div className="text-2xl sm:text-3xl font-black mt-1 text-white font-cinzel tracking-tight group-hover:text-amber-300 transition">
                   {hideBalance ? 'Rp •••••••••' : `Rp ${totalMetrics.grandTotal.toLocaleString('id-ID')}`}
                 </div>
-                <span className="text-[11px] text-slate-500 mt-1 block">Gabungan dari seluruh kantung ninja</span>
+                <span className="text-[11px] text-slate-500 mt-1 block">Gabungan saldo dari seluruh kantung dompet</span>
               </div>
-              <div className="w-12 h-12 bg-amber-950/40 text-amber-400 rounded-xl flex items-center justify-center text-2xl border border-amber-600/30">
+              <div className="w-12 h-12 bg-amber-950/40 text-amber-400 rounded-xl flex items-center justify-center text-2xl border border-amber-600/30 group-hover:rotate-12 transition-transform">
                 <i className="fa-solid fa-vault"></i>
               </div>
             </div>
 
             {/* Total Income */}
-            <div className="ninja-card p-5 rounded-2xl border-l-4 border-l-emerald-500 flex items-center justify-between">
+            <div className="ninja-card p-5 rounded-2xl border-l-4 border-l-emerald-500 flex items-center justify-between hover:border-emerald-500/80 transition group">
               <div>
                 <div className="flex items-center space-x-2">
                   <span className="text-[10px] uppercase font-bold tracking-widest text-emerald-400 font-cinzel">Hasil Misi / Pemasukan</span>
                   <span className="text-xs text-emerald-600 font-jp">報酬</span>
                 </div>
-                <div className="text-xl font-extrabold text-white mt-1 font-cinzel">
+                <div className="text-xl font-extrabold text-white mt-1 font-cinzel group-hover:text-emerald-300 transition">
                   {hideBalance ? 'Rp •••••••••' : `Rp ${totalMetrics.totalInc.toLocaleString('id-ID')}`}
                 </div>
                 <span className="text-[11px] text-slate-500 mt-1 block">Akumulasi pendapatan bounty</span>
               </div>
-              <div className="w-11 h-11 bg-emerald-950/40 text-emerald-400 rounded-xl flex items-center justify-center text-xl border border-emerald-600/30">
+              <div className="w-11 h-11 bg-emerald-950/40 text-emerald-400 rounded-xl flex items-center justify-center text-xl border border-emerald-600/30 group-hover:scale-110 transition-transform">
                 <i className="fa-solid fa-scroll"></i>
               </div>
             </div>
 
             {/* Total Expense */}
-            <div className="ninja-card p-5 rounded-2xl border-l-4 border-l-red-600 flex items-center justify-between">
+            <div className="ninja-card p-5 rounded-2xl border-l-4 border-l-red-600 flex items-center justify-between hover:border-red-600/80 transition group">
               <div>
                 <div className="flex items-center space-x-2">
                   <span className="text-[10px] uppercase font-bold tracking-widest text-red-400 font-cinzel">Biaya Operasi / Pengeluaran</span>
                   <span className="text-xs text-red-600 font-jp">消費</span>
                 </div>
-                <div className="text-xl font-extrabold text-white mt-1 font-cinzel">
+                <div className="text-xl font-extrabold text-white mt-1 font-cinzel group-hover:text-red-300 transition">
                   {hideBalance ? 'Rp •••••••••' : `Rp ${totalMetrics.totalExp.toLocaleString('id-ID')}`}
                 </div>
                 <span className="text-[11px] text-slate-500 mt-1 block">Akumulasi perlengkapan &amp; ransum</span>
               </div>
-              <div className="w-11 h-11 bg-red-950/40 text-red-400 rounded-xl flex items-center justify-center text-xl border border-red-600/30">
+              <div className="w-11 h-11 bg-red-950/40 text-red-400 rounded-xl flex items-center justify-center text-xl border border-red-600/30 group-hover:rotate-12 transition-transform">
                 <i className="fa-solid fa-ninja"></i>
               </div>
             </div>
           </div>
 
-          {/* Section Title */}
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-xs font-bold uppercase tracking-widest text-amber-500 flex items-center gap-2 font-cinzel">
-              <i className="fa-solid fa-pouch-tobacco"></i>
-              <span>Kantung Perbendaharaan Ninja</span>
-            </h3>
-            <span className="text-xs text-slate-500 font-jp">{defaultWallets.length} Posisi Dompet</span>
-          </div>
-
-          {/* Wallet Balance Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-            {defaultWallets.map((w, idx) => {
-              const bal = walletBalances[w] || 0;
-              return (
-                <div 
-                  key={w} 
-                  className="bg-slate-950/80 border border-slate-800 hover:border-amber-600/60 p-4 rounded-xl shadow-lg transition flex flex-col justify-between group relative overflow-hidden"
-                >
-                  <div className="flex justify-between items-center text-slate-400 text-xs">
-                    <span className="text-[10px] uppercase tracking-wider text-slate-500">Saldo</span>
-                    <i className="fa-solid fa-sack-dollar text-amber-600/60 group-hover:text-amber-400 transition"></i>
-                  </div>
-                  <div className="mt-2">
-                    <div className="text-xs font-bold text-amber-400 tracking-wide font-cinzel">{w}</div>
-                    <div className="text-base font-extrabold text-white truncate font-mono mt-0.5">
-                      {hideBalance ? 'Rp •••••' : `Rp ${bal.toLocaleString('id-ID')}`}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
           {/* Monthly Financial History Summary Section */}
+          {}
           <div className="ninja-card rounded-2xl p-5 mb-6 border border-slate-800">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4">
               <div>
@@ -755,7 +1017,8 @@
             )}
           </div>
 
-          {/* Main Content Grid */}
+          {/* Main Content Grid: Transaction Log & Category Chart */}
+          {}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
             {/* Left Column: Transaction List */}
@@ -768,33 +1031,6 @@
                       {filteredTransactions.length} Log
                     </span>
                   </h2>
-                </div>
-
-                {/* Add Transaction Buttons */}
-                <div className="flex flex-wrap gap-2">
-                  <button 
-                    onClick={() => { playSound('scroll'); setModalType('Pengeluaran'); setShowAddModal(true); }}
-                    className="bg-gradient-to-r from-red-900 to-red-950 hover:from-red-800 hover:to-red-900 text-red-200 border border-red-700 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 shadow"
-                  >
-                    <i className="fa-solid fa-minus-circle"></i>
-                    <span>Pengeluaran</span>
-                  </button>
-
-                  <button 
-                    onClick={() => { playSound('scroll'); setModalType('Pemasukan'); setShowAddModal(true); }}
-                    className="bg-gradient-to-r from-emerald-900 to-emerald-950 hover:from-emerald-800 hover:to-emerald-900 text-emerald-200 border border-emerald-700 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 shadow"
-                  >
-                    <i className="fa-solid fa-plus-circle"></i>
-                    <span>Pemasukan</span>
-                  </button>
-
-                  <button 
-                    onClick={() => { playSound('scroll'); setModalType('Transfer'); setShowAddModal(true); }}
-                    className="bg-gradient-to-r from-amber-900 to-amber-950 hover:from-amber-800 hover:to-amber-900 text-amber-200 border border-amber-700 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 shadow"
-                  >
-                    <i className="fa-solid fa-arrow-right-arrow-left"></i>
-                    <span>Transfer</span>
-                  </button>
                 </div>
               </div>
 
@@ -921,16 +1157,17 @@
                   <span>Proteksi Stealth Sync:</span>
                 </div>
                 <p className="text-[11px] text-slate-400 leading-relaxed">
-                  Setiap penghapusan data dikirim secara *real-time* ke Google Sheets tanpa terhalang proteksi CORS browser.
+                  Setiap penghapusan dan perekaman data dikirim secara *real-time* ke Google Sheets tanpa terhalang CORS browser.
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Modal Add Transaction (Scroll Theme) */}
+          {/* Modal Add Transaction (Ninja Scroll Theme) */}
+          {}
           {showAddModal && (
             <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-              <div className="ninja-card rounded-2xl max-w-md w-full p-6 border-2 border-red-900 shadow-2xl relative">
+              <div className="ninja-card rounded-2xl max-w-md w-full p-6 border-2 border-red-900 shadow-2xl relative animate-in fade-in zoom-in duration-200">
                 <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-800">
                   <h3 className="text-lg font-bold text-white font-cinzel flex items-center gap-2">
                     <i className="fa-solid fa-scroll text-amber-500"></i>
@@ -959,7 +1196,7 @@
                   {modalType !== 'Transfer' ? (
                     <>
                       <div>
-                        <label className="block text-xs font-semibold text-slate-400 mb-1">Kantung Ninja</label>
+                        <label className="block text-xs font-semibold text-slate-400 mb-1">Kantung Ninja (Dompet)</label>
                         <select 
                           value={formData.wallet}
                           onChange={(e) => setFormData({...formData, wallet: e.target.value})}
@@ -970,7 +1207,7 @@
                       </div>
 
                       <div>
-                        <label className="block text-xs font-semibold text-slate-400 mb-1">Kategori Operational</label>
+                        <label className="block text-xs font-semibold text-slate-400 mb-1">Kategori Operasional</label>
                         <select 
                           value={formData.category}
                           onChange={(e) => setFormData({...formData, category: e.target.value})}
@@ -1028,7 +1265,7 @@
                     <label className="block text-xs font-semibold text-slate-400 mb-1">Catatan Misi</label>
                     <input 
                       type="text"
-                      placeholder="Contoh: Ransum beras, senjataku..."
+                      placeholder="Contoh: Ransum beras, perlengkapan..."
                       value={formData.notes}
                       onChange={(e) => setFormData({...formData, notes: e.target.value})}
                       className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-slate-200 focus:border-red-600"
@@ -1045,7 +1282,7 @@
                     </button>
                     <button 
                       type="submit"
-                      className="px-5 py-2 bg-gradient-to-r from-red-900 to-black hover:from-red-800 border border-red-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-lg"
+                      className="blade-btn px-5 py-2 bg-gradient-to-r from-red-900 to-black hover:from-red-800 border border-red-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-lg"
                     >
                       Metrai Catatan
                     </button>
@@ -1056,6 +1293,7 @@
           )}
 
           {/* Modal Settings */}
+          {}
           {showSettings && (
             <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
               <div className="ninja-card rounded-2xl max-w-lg w-full p-6 border border-slate-800 shadow-2xl">
