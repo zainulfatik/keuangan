@@ -350,10 +350,10 @@
         ];
       });
 
-      // Filter States
+      // Filter States (Month filter diubah agar mempengaruhi riwayat bulanan juga)
       const [filterWallet, setFilterWallet] = useState('Semua');
       const [filterType, setFilterType] = useState('Semua');
-      const [filterMonth, setFilterMonth] = useState('Semua');
+      const [filterMonth, setFilterMonth] = useState('Semua'); // Default tampil semua
       const [searchQuery, setSearchQuery] = useState('');
 
       // Form Modal State
@@ -587,6 +587,7 @@
         return { grandTotal, totalInc, totalExp };
       }, [transactions, walletBalances]);
 
+      // Kalkulasi semua metrik bulanan
       const monthlyMetrics = useMemo(() => {
         const monthlyMap = {};
         const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
@@ -629,6 +630,13 @@
         });
       }, [transactions]);
 
+      // Filter metrik bulanan berdasarkan pilihan dropdown
+      const filteredMonthlyMetrics = useMemo(() => {
+        if (filterMonth === 'Semua') return monthlyMetrics;
+        return monthlyMetrics.filter(m => m.ym === filterMonth);
+      }, [monthlyMetrics, filterMonth]);
+
+      // Filter tabel transaksi 
       const filteredTransactions = useMemo(() => {
         const list = transactions.filter(tx => {
           const matchWallet = filterWallet === 'Semua' || tx.wallet.includes(filterWallet);
@@ -654,11 +662,13 @@
         });
       }, [transactions, filterWallet, filterType, filterMonth, searchQuery]);
 
+      // Update Chart berdasarkan transaksi yang difilter (opsional: jika ingin chart ikut terfilter bulan)
       useEffect(() => {
         if (!chartRef.current) return;
 
         const categoryTotals = {};
-        transactions.forEach(tx => {
+        // Gunakan filteredTransactions agar chart juga menyesuaikan bulan yang dipilih
+        filteredTransactions.forEach(tx => {
           if (tx.type === 'Pengeluaran') {
             const cat = tx.category || 'Lainnya';
             categoryTotals[cat] = (categoryTotals[cat] || 0) + Number(tx.amount);
@@ -701,7 +711,7 @@
         return () => {
           if (chartInstance.current) chartInstance.current.destroy();
         };
-      }, [transactions]);
+      }, [filteredTransactions]);
 
       return (
         <div className={`max-w-7xl mx-auto px-4 py-6 relative overflow-hidden transition-all duration-200 ${isSlashing ? 'slash-anim-active' : ''}`}>
@@ -787,8 +797,7 @@
             </div>
           </header>
 
-          {/* 2. TOMBOL TRANSAKSI (POSISI BARU: DI BAWAH HEADER) */}
-          {}
+          {/* 2. TOMBOL TRANSAKSI */}
           <div className="ninja-card rounded-2xl p-5 mb-6 border border-red-900/60 bg-gradient-to-r from-red-950/40 via-black/80 to-amber-950/30">
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
               <div className="flex items-center space-x-3">
@@ -806,7 +815,6 @@
 
               {/* Big Prominent Action Buttons */}
               <div className="grid grid-cols-3 gap-3 w-full md:w-auto">
-                {/* Pengeluaran */}
                 <button 
                   onClick={() => { 
                     playNinjaSound('slash'); 
@@ -820,7 +828,6 @@
                   <span>Pengeluaran</span>
                 </button>
 
-                {/* Pemasukan */}
                 <button 
                   onClick={() => { 
                     playNinjaSound('koto'); 
@@ -833,7 +840,6 @@
                   <span>Pemasukan</span>
                 </button>
 
-                {/* Transfer */}
                 <button 
                   onClick={() => { 
                     playNinjaSound('shuriken'); 
@@ -849,8 +855,7 @@
             </div>
           </div>
 
-          {/* 3. DOMPET / KANTUNG PERBENDAHARAAN NINJA (POSISI BARU: SETELAH TOMBOL TRANSAKSI) */}
-          {}
+          {/* 3. DOMPET / KANTUNG PERBENDAHARAAN NINJA */}
           <div className="mb-6">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-xs font-bold uppercase tracking-widest text-amber-500 flex items-center gap-2 font-cinzel">
@@ -895,11 +900,8 @@
             </div>
           </div>
 
-          {/* 4. TOTAL UANG / GRAND TREASURY SUMMARY (POSISI BARU: SETELAH DOMPET) */}
-          {}
+          {/* 4. TOTAL UANG / GRAND TREASURY SUMMARY */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            
-            {/* Grand Total Balance */}
             <div className="ninja-card p-5 rounded-2xl border-l-4 border-l-amber-500 flex items-center justify-between hover:border-amber-500/80 transition group">
               <div>
                 <div className="flex items-center space-x-2">
@@ -916,7 +918,6 @@
               </div>
             </div>
 
-            {/* Total Income */}
             <div className="ninja-card p-5 rounded-2xl border-l-4 border-l-emerald-500 flex items-center justify-between hover:border-emerald-500/80 transition group">
               <div>
                 <div className="flex items-center space-x-2">
@@ -933,7 +934,6 @@
               </div>
             </div>
 
-            {/* Total Expense */}
             <div className="ninja-card p-5 rounded-2xl border-l-4 border-l-red-600 flex items-center justify-between hover:border-red-600/80 transition group">
               <div>
                 <div className="flex items-center space-x-2">
@@ -951,30 +951,47 @@
             </div>
           </div>
 
-          {/* Monthly Financial History Summary Section */}
-          {}
+          {/* 5. GULUNGAN RIWAYAT BULANAN (Dengan Filter Pilihan Bulan) */}
           <div className="ninja-card rounded-2xl p-5 mb-6 border border-slate-800">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-5">
               <div>
                 <h3 className="text-base font-bold text-white flex items-center space-x-2 font-cinzel">
                   <i className="fa-solid fa-book-bookmark text-amber-500"></i>
                   <span>Gulungan Riwayat Bulanan</span>
                   <span className="text-xs font-jp text-amber-600 font-normal"> 月次記録</span>
                 </h3>
-                <p className="text-xs text-slate-400">Ringkasan total perolehan dan pengeluaran per periode bulan</p>
+                <p className="text-xs text-slate-400">Pilih periode di bawah ini untuk melihat ringkasan & log transaksi spesifik.</p>
               </div>
-              <span className="text-xs bg-red-950 border border-red-800 text-red-300 px-3 py-1 rounded-full font-mono">
-                {monthlyMetrics.length} Periode
-              </span>
+              
+              {/* GLOBAL MONTH FILTER - Terhubung dengan Riwayat & Tabel Transaksi */}
+              <div className="flex items-center space-x-2 bg-slate-900/80 p-1.5 rounded-xl border border-slate-700 w-full md:w-auto shadow-inner">
+                <i className="fa-solid fa-calendar-days text-slate-400 pl-2"></i>
+                <select 
+                  value={filterMonth} 
+                  onChange={(e) => setFilterMonth(e.target.value)}
+                  className="bg-slate-950 w-full md:w-48 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-amber-400 font-bold focus:outline-none focus:border-red-600 cursor-pointer"
+                >
+                  <option value="Semua">Tampilkan Semua Bulan</option>
+                  {monthlyMetrics.map(m => <option key={m.ym} value={m.ym}>{m.label}</option>)}
+                </select>
+              </div>
             </div>
 
-            {monthlyMetrics.length === 0 ? (
-              <p className="text-xs text-slate-500 text-center py-4 font-jp">Belum ada gulungan data bulanan.</p>
+            {filteredMonthlyMetrics.length === 0 ? (
+              <div className="text-center py-6 border border-dashed border-slate-800 rounded-xl bg-slate-950/30">
+                 <i className="fa-solid fa-wind text-2xl text-slate-700 mb-2"></i>
+                 <p className="text-xs text-slate-500 font-jp">Tidak ada gulungan data untuk periode yang dipilih.</p>
+              </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {monthlyMetrics.map(m => (
-                  <div key={m.ym} className="bg-slate-950/60 rounded-xl p-4 border border-slate-800/80 hover:border-slate-700 transition">
-                    <div className="flex justify-between items-center pb-2 border-b border-slate-800 mb-3">
+                {filteredMonthlyMetrics.map(m => (
+                  <div key={m.ym} className="bg-slate-950/60 rounded-xl p-4 border border-slate-800/80 hover:border-slate-700 transition relative overflow-hidden">
+                    {/* Aksen visual saat hanya 1 bulan yg dipilih */}
+                    {filterMonth !== 'Semua' && (
+                       <div className="absolute top-0 right-0 w-16 h-16 bg-red-900/10 rounded-bl-full border-b border-l border-red-900/20"></div>
+                    )}
+                    
+                    <div className="flex justify-between items-center pb-2 border-b border-slate-800 mb-3 relative z-10">
                       <span className="font-bold text-amber-400 text-sm font-cinzel">{m.label}</span>
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider ${
                         m.net >= 0 ? 'bg-emerald-950/80 border-emerald-700 text-emerald-400' : 'bg-red-950/80 border-red-700 text-red-400'
@@ -983,7 +1000,7 @@
                       </span>
                     </div>
 
-                    <div className="space-y-2 text-xs">
+                    <div className="space-y-2 text-xs relative z-10">
                       <div className="flex justify-between items-center">
                         <span className="text-slate-400 flex items-center">
                           <i className="fa-solid fa-arrow-down text-emerald-500 mr-1.5"></i>
@@ -1017,8 +1034,7 @@
             )}
           </div>
 
-          {/* Main Content Grid: Transaction Log & Category Chart */}
-          {}
+          {/* 6. Main Content Grid: Transaction Log & Category Chart */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
             {/* Left Column: Transaction List */}
@@ -1031,20 +1047,16 @@
                       {filteredTransactions.length} Log
                     </span>
                   </h2>
+                  {filterMonth !== 'Semua' && (
+                    <p className="text-[11px] text-amber-500 mt-1">
+                      Menampilkan data khusus periode: <span className="font-bold border-b border-amber-500/50 pb-0.5">{monthlyMetrics.find(m => m.ym === filterMonth)?.label}</span>
+                    </p>
+                  )}
                 </div>
               </div>
 
-              {/* Filter Controls */}
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 mb-4">
-                <select 
-                  value={filterMonth} 
-                  onChange={(e) => setFilterMonth(e.target.value)}
-                  className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-amber-500"
-                >
-                  <option value="Semua">Semua Bulan</option>
-                  {monthlyMetrics.map(m => <option key={m.ym} value={m.ym}>{m.label}</option>)}
-                </select>
-
+              {/* Filter Controls (Sisa filter tambahan, filter bulan sudah dipindah ke atas) */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
                 <select 
                   value={filterWallet} 
                   onChange={(e) => setFilterWallet(e.target.value)}
@@ -1065,13 +1077,16 @@
                   <option value="Transfer">Transfer</option>
                 </select>
 
-                <input 
-                  type="text"
-                  placeholder="Cari..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-amber-500"
-                />
+                <div className="relative">
+                  <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500 text-xs"></i>
+                  <input 
+                    type="text"
+                    placeholder="Cari catatan..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-8 pr-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-amber-500"
+                  />
+                </div>
               </div>
 
               {/* Transactions Table */}
@@ -1143,7 +1158,7 @@
             <div className="ninja-card rounded-2xl p-5 border border-slate-800 flex flex-col justify-between">
               <div>
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="font-bold text-white font-cinzel">Pengeluaran Per Kategori</h3>
+                  <h3 className="font-bold text-white font-cinzel text-sm">Pengeluaran {filterMonth !== 'Semua' ? 'Bulan Ini' : 'Keseluruhan'}</h3>
                   <span className="text-xs text-amber-500 font-jp">分析</span>
                 </div>
                 <div className="relative h-64 w-full">
@@ -1164,7 +1179,6 @@
           </div>
 
           {/* Modal Add Transaction (Ninja Scroll Theme) */}
-          {}
           {showAddModal && (
             <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
               <div className="ninja-card rounded-2xl max-w-md w-full p-6 border-2 border-red-900 shadow-2xl relative animate-in fade-in zoom-in duration-200">
@@ -1183,7 +1197,7 @@
 
                 <form onSubmit={handleAddSubmit} className="space-y-4">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-400 mb-1">Tanggal Tanggal Misi</label>
+                    <label className="block text-xs font-semibold text-slate-400 mb-1">Tanggal Misi</label>
                     <input 
                       type="date"
                       value={formData.date}
@@ -1293,7 +1307,6 @@
           )}
 
           {/* Modal Settings */}
-          {}
           {showSettings && (
             <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
               <div className="ninja-card rounded-2xl max-w-lg w-full p-6 border border-slate-800 shadow-2xl">
