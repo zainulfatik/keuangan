@@ -353,7 +353,12 @@
       // Filter States (Month filter diubah agar mempengaruhi riwayat bulanan juga)
       const [filterWallet, setFilterWallet] = useState('Semua');
       const [filterType, setFilterType] = useState('Semua');
-      const [filterMonth, setFilterMonth] = useState('Semua'); // Default tampil semua
+      const [filterMonth, setFilterMonth] = useState(() => {
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        return `${y}-${m}`;
+      }); // Default langsung ke bulan saat ini
       const [searchQuery, setSearchQuery] = useState('');
 
       // Form Modal State
@@ -972,6 +977,15 @@
                   className="bg-slate-950 w-full md:w-48 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-amber-400 font-bold focus:outline-none focus:border-red-600 cursor-pointer"
                 >
                   <option value="Semua">Tampilkan Semua Bulan</option>
+                  {!monthlyMetrics.some(m => m.ym === filterMonth) && filterMonth !== 'Semua' && (
+                    <option value={filterMonth}>
+                      {(() => {
+                        const [y, m] = filterMonth.split('-');
+                        const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+                        return `${monthNames[parseInt(m, 10) - 1]} ${y}`;
+                      })()}
+                    </option>
+                  )}
                   {monthlyMetrics.map(m => <option key={m.ym} value={m.ym}>{m.label}</option>)}
                 </select>
               </div>
@@ -1049,7 +1063,15 @@
                   </h2>
                   {filterMonth !== 'Semua' && (
                     <p className="text-[11px] text-amber-500 mt-1">
-                      Menampilkan data khusus periode: <span className="font-bold border-b border-amber-500/50 pb-0.5">{monthlyMetrics.find(m => m.ym === filterMonth)?.label}</span>
+                      Menampilkan data khusus periode: <span className="font-bold border-b border-amber-500/50 pb-0.5">
+                        {monthlyMetrics.find(m => m.ym === filterMonth)?.label || (
+                          (() => {
+                            const [y, m] = filterMonth.split('-');
+                            const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+                            return `${monthNames[parseInt(m, 10) - 1]} ${y}`;
+                          })()
+                        )}
+                      </span>
                     </p>
                   )}
                 </div>
